@@ -129,10 +129,28 @@ public class Solver
         for (int i = 0; i < actualLines.Count; i++)
         {
             string? line = actualLines[i];
-            var parts = line.Split(' ');
+            var parts = line.Split(new char[] { ' ', ',' });
+
+            var stationPosX = int.Parse(parts[0]);
+            var stationPosY = int.Parse(parts[1]);
+            var timeLimit = int.Parse(parts[2]);
+
+            var sequenceX = CalculateSequence(stationPosX, timeLimit);
+            var sequenceY = CalculateSequence(stationPosY, timeLimit);
+
+            var resultLine = string.Join(' ', sequenceX.Select(i => i.ToString()));
+            fullResult.AppendLine(resultLine);
+
+            resultLine = string.Join(' ', sequenceY.Select(i => i.ToString()));
+            fullResult.AppendLine(resultLine);
+
+            if (i < actualLines.Count - 1)
+            {
+                fullResult.AppendLine();
+            }
         }
 
-        return fullResult.ToString().TrimEnd('\n').TrimEnd('\r');
+        return fullResult.ToString();
     }
 
     private string SolveLevel5(List<string> lines)
