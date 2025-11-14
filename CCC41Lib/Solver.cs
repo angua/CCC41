@@ -42,14 +42,25 @@ public class Solver
         var actualLines = lines.Skip(1).ToList();
         var fullResult = new StringBuilder();
 
-        for (int i = 0; i < actualLines.Count; i++)
+        /*cases:
+
+        +: position++; time+=value X
+        0: time++
+        -: position--; time+=value
+
+        */
+        foreach (var line in actualLines)
         {
-            string? line = actualLines[i];
             var parts = line.Split(' ');
 
+            var position = parts.Select(int.Parse).Select(i => i > 0 ? 1 : (i < 0 ? -1 : 0)).Sum();
+            var timeTaken = parts.Select(int.Parse).Select(i => i == 0 ? 1 : Math.Abs(i)).Sum();
+
+            var resultLine = $"{position} {timeTaken}";
+            fullResult.AppendLine(resultLine);
         }
 
-        return fullResult.ToString().TrimEnd('\n').TrimEnd('\r');
+        return fullResult.ToString().TrimEnd('\n').TrimEnd('\r') + Environment.NewLine;
     }
 
     private string SolveLevel3(List<string> lines)

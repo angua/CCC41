@@ -10,11 +10,11 @@ void WriteOutputs(int level)
 
     var solver = new Solver();
 
-    foreach (var inputfilename in new List<string> { $"{folder}/Level{level}/level{level}_1_small.in", $"{folder}/Level{level}/level{level}_2_large.in" })
+    foreach (var inputfilename in new List<string> { $"{folder}/Level{level}/level{level}_1_small.in", $"{folder}/Level{level}/level{level}_2_large.in", $"{folder}/Level{level}/level{level}_0_example.in" })
     {
         var lines = File.ReadAllLines(inputfilename).ToList();
 
-        var outputfilename = $"{folder}/Level{level}/level{level}_2_large.out";
+        var outputfilename = inputfilename.Replace(".in", ".out");
         using var outputWriter = new StreamWriter(outputfilename);
 
         Console.WriteLine($"Level {level} File {inputfilename}");
