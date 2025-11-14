@@ -98,7 +98,7 @@ public class MathUtils
             var rightTestPos = currentPosition + rightDir;
 
             // add new right positions to hashset
-             FindPositions(rightPositions, rightTestPos, edges, minBoundary, maxBoundary, out var rightIsOutside);
+            FindPositions(rightPositions, rightTestPos, edges, minBoundary, maxBoundary, out var rightIsOutside);
             if (rightIsOutside)
             {
                 outside = Side.Right;
@@ -139,7 +139,7 @@ public class MathUtils
         {
             var testPos = availablePositions.Pop();
 
-            if (InsideBoundary(testPos, minBoundary, maxBoundary))
+            if (InsideOrTouchingBoundary(testPos, minBoundary, maxBoundary))
             {
                 if (!edges.Contains(testPos))
                 {
@@ -167,12 +167,20 @@ public class MathUtils
 
     }
 
-    public static bool InsideBoundary(Vector2 testPos, Vector2 minBoundary, Vector2 maxBoundary)
+    public static bool InsideOrTouchingBoundary(Vector2 testPos, Vector2 minBoundary, Vector2 maxBoundary)
     {
         return (testPos.X >= minBoundary.X &&
                 testPos.X <= maxBoundary.X &&
                 testPos.Y >= minBoundary.Y &&
                 testPos.Y <= maxBoundary.Y);
+    }
+
+    public static bool InsideBoundary(Vector2 testPos, Vector2 minBoundary, Vector2 maxBoundary)
+    {
+        return (testPos.X > minBoundary.X &&
+                testPos.X < maxBoundary.X &&
+                testPos.Y > minBoundary.Y &&
+                testPos.Y < maxBoundary.Y);
     }
 
     public static Vector2 TurnRight(Vector2 input)
