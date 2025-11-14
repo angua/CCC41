@@ -544,6 +544,8 @@ public partial class Solver
             xSteps.Add(0);
             ySteps.Add(0);
 
+            OptimizePath(xSteps, ySteps);
+
 
             var resultLine = string.Join(' ', xSteps.Select(i => i.ToString()));
             fullResult.AppendLine(resultLine);
@@ -558,6 +560,67 @@ public partial class Solver
         }
 
         return fullResult.ToString();
+    }
+
+    private void OptimizePath(List<int> xSteps, List<int> ySteps)
+    {
+        while (true)
+        {
+            var changed = false;
+
+            for (int i = 1; i < Math.Max(xSteps.Count - 1, ySteps.Count - 1); ++i)
+            {
+                if (i >= xSteps.Count - 1 || i >= ySteps.Count - 1)
+                {
+                    continue;
+                }
+
+                var prevPair = (xSteps[i - 1], ySteps[i - 1]);
+                var nextPair = (xSteps[i + 1], ySteps[i + 1]);
+                var thisPair = (xSteps[i], ySteps[i]);
+
+                if (thisPair == (0, 0))
+                {
+                    continue;
+                }
+
+                if (thisPair.Item1 > 0 && thisPair.Item2 > 0)
+                {
+                    if (thisPair == prevPair && thisPair == nextPair && thisPair.Item1 > 1)
+                    {
+                        xSteps[i]--;
+                        ySteps[i]--;
+                        changed = true;
+                    }
+                    else if (thisPair == (prevPair.Item1 + 1, prevPair.Item2 + 1) && thisPair == nextPair && thisPair.Item1 > 1)
+                    {
+                        xSteps[i]--;
+                        ySteps[i]--;
+                        changed = true;
+                    }
+                }
+                else // negative
+                {
+                    if (thisPair == prevPair && thisPair == nextPair && thisPair.Item1 < -1)
+                    {
+                        xSteps[i]++;
+                        ySteps[i]++;
+                        changed = true;
+                    }
+                    else if (thisPair == (prevPair.Item1 - 1, prevPair.Item2 - 1) && thisPair == nextPair && thisPair.Item1 < -1)
+                    {
+                        xSteps[i]++;
+                        ySteps[i]++;
+                        changed = true;
+                    }
+                }
+            }
+
+            if (!changed)
+            {
+                break;
+            } 
+        }
     }
 
     private string SolveLevel7(List<string> lines)
