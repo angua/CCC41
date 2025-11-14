@@ -28,7 +28,9 @@ public class Solver
         {
             var parts = line.Split(' ');
 
-            var resultLine = string.Empty;
+            var sum = parts.Select(int.Parse).Sum();
+
+            var resultLine = sum.ToString();
             fullResult.AppendLine(resultLine);
         }
 

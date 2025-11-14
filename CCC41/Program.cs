@@ -1,6 +1,6 @@
 ﻿using CCC41Lib;
 
-var level = 1;
+var level = 2;
 
 WriteOutputs(level);
 
@@ -10,15 +10,14 @@ void WriteOutputs(int level)
 
     var solver = new Solver();
 
-    for (var inputFileNumber = 1; inputFileNumber <= 5; inputFileNumber++)
+    foreach (var inputfilename in new List<string> { $"{folder}/Level{level}/level{level}_1_small.in", $"{folder}/Level{level}/level{level}_2_large.in" })
     {
-        var inputfilename = $"{folder}/Level{level}/level{level}_{inputFileNumber}.in";
         var lines = File.ReadAllLines(inputfilename).ToList();
 
-        var outputfilename = $"{folder}/Level{level}/level{level}_{inputFileNumber}.out";
+        var outputfilename = $"{folder}/Level{level}/level{level}_2_large.out";
         using var outputWriter = new StreamWriter(outputfilename);
 
-        Console.WriteLine($"Level {level} File {inputFileNumber}");
+        Console.WriteLine($"Level {level} File {inputfilename}");
         var output = solver.Solve(level, lines);
 
         outputWriter.Write(output);
