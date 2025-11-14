@@ -1,8 +1,9 @@
-﻿using System.Text;
+﻿using System.Numerics;
+using System.Text;
 
 namespace CCC41Lib;
 
-public class Solver
+public partial class Solver
 {
     public string Solve(int level, List<string> lines)
     {
@@ -77,13 +78,14 @@ public class Solver
 
         return fullResult.ToString() + Environment.NewLine;
     }
+
     private List<int> CalculateSequence(int stationPos, int timeLimit)
     {
         var result = new List<int> { 0 };
 
         if (Math.Abs(stationPos) >= 9)
         {
-            result.AddRange( [ 5, 4, 3, 2, 1 ]); // accel
+            result.AddRange([5, 4, 3, 2, 1]); // accel
 
             int additionalOnes = Math.Abs(stationPos) - 9;
 
@@ -92,7 +94,7 @@ public class Solver
                 result.Add(1);
             }
 
-            result.AddRange( [ 2, 3, 4, 5 ]); // decel
+            result.AddRange([2, 3, 4, 5]); // decel
         }
         else // pos < 9
         {
@@ -153,6 +155,7 @@ public class Solver
         return fullResult.ToString();
     }
 
+
     private string SolveLevel5(List<string> lines)
     {
         var actualLines = lines.Skip(1).ToList();
@@ -160,9 +163,262 @@ public class Solver
 
         for (int i = 0; i < actualLines.Count; i++)
         {
+            string? line = actualLines[i];
+            var parts = line.Split(new char[] { ' ', ',' });
+
+            var stationPosX = int.Parse(parts[0]);
+            var stationPosY = int.Parse(parts[1]);
+            var timeLimit = int.Parse(parts[2]);
+
+            ++i;
+            var asteroidLine = actualLines[i];
+            parts = asteroidLine.Split(new char[] { ' ', ',' });
+
+            var asteroidX = int.Parse(parts[0]);
+            var asteroidY = int.Parse(parts[1]);
+
+            var forbidden = new List<Vector2>();
+            for (int x = -2; x <= 2; x++)
+            {
+                for (int y = -2; y <= 2; y++)
+                {
+                    forbidden.Add(new Vector2(asteroidX + x, asteroidY + y));
+                }
+            }
+
+            var minX = Math.Min(0, stationPosX) - 5;
+            var minY = Math.Min(0, stationPosY) - 5;
+            var maxX = Math.Max(0, stationPosX) + 5;
+            var maxY = Math.Max(0, stationPosY) + 5;
+
+
+
+            var bestPath = GetShortestPath(Vector2.Zero, new Vector2(stationPosX, stationPosY), new Vector2(minX, minY), new Vector2(maxX, maxY), forbidden);
+
+            var directions = new List<Vector2>();
+            for (int s = 0; s < bestPath.Count - 1; s++)
+            {
+                directions.Add(bestPath[s + 1] - bestPath[s]);
+            }
+
+            var xSteps = new List<int>();
+            xSteps.Add(0);
+            var ySteps = new List<int>();
+            ySteps.Add(0);
+
+            var index = 0;
+
+            while (index < directions.Count)
+            {
+                var current = directions[index];
+
+                var testIndex = index;
+
+                while (true)
+                {
+                    testIndex++;
+                    if (testIndex == directions.Count || directions[testIndex] != directions[index])
+                    {
+                        break;
+                    }
+                }
+
+                var stepCount = testIndex - index;
+
+
+                var movesX = new List<int>();
+                if (current.X != 0)
+                {
+                    movesX = CalculateMovementSequence(stepCount);
+                    if (current.X < 0)
+                    {
+                        for (int s = 0; s < movesX.Count; s++)
+                        {
+                            movesX[s] *= -1;
+                        }
+                    }
+                }
+
+                var movesY = new List<int>();
+                if (current.Y != 0)
+                {
+                    movesY = CalculateMovementSequence(stepCount);
+                    if (current.Y < 0)
+                    {
+                        for (int s = 0; s < movesY.Count; s++)
+                        {
+                            movesY[s] *= -1;
+                        }
+                    }
+                }
+
+                if (current.X == 0)
+                {
+                    var timeSum = Math.Abs(movesY.Sum());
+                    for (int t = 0; t < timeSum; t++)
+                    {
+                        movesX.Add(0);
+                    }
+                }
+
+                if (current.Y == 0)
+                {
+                    var timeSum = Math.Abs(movesX.Sum());
+                    for (int t = 0; t < timeSum; t++)
+                    {
+                        movesY.Add(0);
+                    }
+                }
+
+                xSteps.AddRange(movesX);
+                ySteps.AddRange(movesY);
+
+                index = testIndex;
+
+            }
+            xSteps.Add(0);
+            ySteps.Add(0);
+
+
+            var resultLine = string.Join(' ', xSteps.Select(i => i.ToString()));
+            fullResult.AppendLine(resultLine);
+
+            resultLine = string.Join(' ', ySteps.Select(i => i.ToString()));
+            fullResult.AppendLine(resultLine);
+
+            if (i < actualLines.Count - 1)
+            {
+                fullResult.AppendLine();
+            }
         }
 
-        return fullResult.ToString().TrimEnd('\n').TrimEnd('\r');
+        return fullResult.ToString();
+    }
+
+
+
+    private List<int> CalculateMovementSequence(int stationPos)
+    {
+        var result = new List<int>();
+
+        if (Math.Abs(stationPos) >= 9)
+        {
+            result.AddRange([5, 4, 3, 2, 1]); // accel
+
+            int additionalOnes = Math.Abs(stationPos) - 9;
+
+            for (int i = 0; i < additionalOnes; i++)
+            {
+                result.Add(1);
+            }
+
+            result.AddRange([2, 3, 4, 5]); // decel
+        }
+        else // pos < 9
+        {
+            var steps = new List<int> { 5, 4, 3, 2, 1, 2, 3, 4, 5 };
+            var toRemove = 9 - Math.Abs(stationPos);
+
+            for (int i = 0; i < toRemove; i++)
+            {
+                var currentMin = steps.Min();
+                steps.RemoveAt(steps.IndexOf(currentMin));
+            }
+
+            result.AddRange(steps);
+        }
+        return result;
+    }
+
+
+    private List<Vector2> GetShortestPath(Vector2 startPos, Vector2 endPos, Vector2 minPos, Vector2 maxPos, List<Vector2> forbidden)
+    {
+        var available = new Queue<Step>();
+        var visited = new HashSet<Vector2>();
+
+        var startStep = new Step()
+        {
+            Position = startPos
+        };
+
+        available.Enqueue(startStep);
+        visited.Add(startPos);
+
+        var directRoute = endPos - startPos;
+
+        var xDirections = directRoute.X > 0 ? new List<int> { 1, 0, -1 } : new List<int> { -1, 0, 1 };
+        var yDirections = directRoute.Y > 0 ? new List<int> { 1, 0, -1 } : new List<int> { -1, 0, 1 };
+
+        var directions = new List<Vector2>();
+        foreach (var x in xDirections)
+        {
+            foreach (var y in yDirections)
+            {
+                directions.Add(new Vector2(x, y));
+            }
+        }
+
+        Step? lastStep = null;
+
+        while (available.Count > 0)
+        {
+            var current = available.Dequeue();
+
+            foreach (var dir in directions)
+            {
+                var moveDiff = current.Move - dir;
+
+                if (Math.Abs(moveDiff.X) > 1 || Math.Abs(moveDiff.Y) > 1)
+                {
+                    continue;
+                }
+
+                var newPos = current.Position + dir;
+
+                if (visited.Contains(newPos) || forbidden.Contains(newPos) ||
+                    newPos.X < minPos.X || newPos.Y < minPos.Y || newPos.X > maxPos.X || newPos.Y > maxPos.Y)
+                {
+                    continue;
+                }
+
+                var newStep = new Step()
+                {
+                    Position = newPos,
+                    Previous = current,
+                    Move = dir
+                };
+
+                if (newPos == endPos)
+                {
+                    lastStep = newStep;
+                    break;
+                }
+
+                available.Enqueue(newStep);
+                visited.Add(newPos);
+            }
+        }
+
+        var positions = new List<Vector2>();
+        var currentstep = lastStep;
+        positions.Add(currentstep.Position);
+
+
+        while (currentstep.Previous != null)
+        {
+            currentstep = currentstep.Previous;
+            positions.Add(currentstep.Position);
+        }
+
+        positions.Reverse();
+        return positions;
+    }
+
+    private class Step
+    {
+        public Vector2 Position { get; set; }
+        public Step? Previous { get; set; }
+        public Vector2 Move { get; set; }
     }
 
     private string SolveLevel6(List<string> lines)
@@ -173,11 +429,135 @@ public class Solver
         for (int i = 0; i < actualLines.Count; i++)
         {
             string? line = actualLines[i];
-            var parts = line.Split(' ');
+            var parts = line.Split(new char[] { ' ', ',' });
 
+            var stationPosX = int.Parse(parts[0]);
+            var stationPosY = int.Parse(parts[1]);
+            var timeLimit = int.Parse(parts[2]);
+
+            ++i;
+            var asteroidLine = actualLines[i];
+            parts = asteroidLine.Split(new char[] { ' ', ',' });
+
+            var asteroidX = int.Parse(parts[0]);
+            var asteroidY = int.Parse(parts[1]);
+
+            var forbidden = new List<Vector2>();
+            for (int x = -2; x <= 2; x++)
+            {
+                for (int y = -2; y <= 2; y++)
+                {
+                    forbidden.Add(new Vector2(asteroidX + x, asteroidY + y));
+                }
+            }
+
+            var minX = Math.Min(0, stationPosX) - 5;
+            var minY = Math.Min(0, stationPosY) - 5;
+            var maxX = Math.Max(0, stationPosX) + 5;
+            var maxY = Math.Max(0, stationPosY) + 5;
+
+
+
+            var bestPath = GetShortestPath(Vector2.Zero, new Vector2(stationPosX, stationPosY), new Vector2(minX, minY), new Vector2(maxX, maxY), forbidden);
+
+            var directions = new List<Vector2>();
+            for (int s = 0; s < bestPath.Count - 1; s++)
+            {
+                directions.Add(bestPath[s + 1] - bestPath[s]);
+            }
+
+            var xSteps = new List<int>();
+            xSteps.Add(0);
+            var ySteps = new List<int>();
+            ySteps.Add(0);
+
+            var index = 0;
+
+            while (index < directions.Count)
+            {
+                var current = directions[index];
+
+                var testIndex = index;
+
+                while (true)
+                {
+                    testIndex++;
+                    if (testIndex == directions.Count || directions[testIndex] != directions[index])
+                    {
+                        break;
+                    }
+                }
+
+                var stepCount = testIndex - index;
+
+
+                var movesX = new List<int>();
+                if (current.X != 0)
+                {
+                    movesX = CalculateMovementSequence(stepCount);
+                    if (current.X < 0)
+                    {
+                        for (int s = 0; s < movesX.Count; s++)
+                        {
+                            movesX[s] *= -1;
+                        }
+                    }
+                }
+
+                var movesY = new List<int>();
+                if (current.Y != 0)
+                {
+                    movesY = CalculateMovementSequence(stepCount);
+                    if (current.Y < 0)
+                    {
+                        for (int s = 0; s < movesY.Count; s++)
+                        {
+                            movesY[s] *= -1;
+                        }
+                    }
+                }
+
+                if (current.X == 0)
+                {
+                    var timeSum = Math.Abs(movesY.Sum());
+                    for (int t = 0; t < timeSum; t++)
+                    {
+                        movesX.Add(0);
+                    }
+                }
+
+                if (current.Y == 0)
+                {
+                    var timeSum = Math.Abs(movesX.Sum());
+                    for (int t = 0; t < timeSum; t++)
+                    {
+                        movesY.Add(0);
+                    }
+                }
+
+                xSteps.AddRange(movesX);
+                ySteps.AddRange(movesY);
+
+                index = testIndex;
+
+            }
+            xSteps.Add(0);
+            ySteps.Add(0);
+
+
+            var resultLine = string.Join(' ', xSteps.Select(i => i.ToString()));
+            fullResult.AppendLine(resultLine);
+
+            resultLine = string.Join(' ', ySteps.Select(i => i.ToString()));
+            fullResult.AppendLine(resultLine);
+
+            if (i < actualLines.Count - 1)
+            {
+                fullResult.AppendLine();
+            }
         }
 
-        return fullResult.ToString().TrimEnd('\n').TrimEnd('\r');
+        return fullResult.ToString();
     }
 
     private string SolveLevel7(List<string> lines)
