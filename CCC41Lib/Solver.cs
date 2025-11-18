@@ -1,4 +1,6 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
+using System.Security.Claims;
 using System.Text;
 
 namespace CCC41Lib;
@@ -428,6 +430,7 @@ public partial class Solver
 
         for (int i = 0; i < actualLines.Count; i++)
         {
+            Console.WriteLine($"data {i / 2}");
             string? line = actualLines[i];
             var parts = line.Split(new char[] { ' ', ',' });
 
@@ -451,13 +454,207 @@ public partial class Solver
                 }
             }
 
-            var minX = Math.Min(0, stationPosX) - 5;
-            var minY = Math.Min(0, stationPosY) - 5;
-            var maxX = Math.Max(0, stationPosX) + 5;
-            var maxY = Math.Max(0, stationPosY) + 5;
+            var minX = Math.Min(0, stationPosX) - 3;
+            var minY = Math.Min(0, stationPosY) - 3;
+            var maxX = Math.Max(0, stationPosX) + 3;
+            var maxY = Math.Max(0, stationPosY) + 3;
+
+            var data = new DataSet()
+            {
+                StationPosition = new Vector2(stationPosX, stationPosY),
+                Asteroids = [new Vector2(asteroidX, asteroidY)],
+                TimeLimit = timeLimit
+            };
+
+
+            var state = new MoveState()
+            {
+                Position = data.StartPosition,
+                TimeLeftX = 0,
+                TimeLeftY = 0,
+                AddMoveX = "0",
+                AddMoveY = "0",
+            };
+
+            // time, movestates at this time
+            var moveStates = new Dictionary<int, List<MoveState>>();
+            moveStates.Add(0, [state]);
+
+            MoveState? finalState = null;
+
+            var speedDiffs = new List<int>
+            {
+                -1, 0, 1
+            };
+            var minSpeed = -5;
+            var maxSpeed = 5;
+
+
+            while (moveStates.Count > 0)
+            {
+                if (finalState != null)
+                {
+                    break;
+                }
+
+                var minTime = moveStates.Min(m => m.Key);
+                var currentMoves = moveStates[minTime];
+                moveStates.Remove(minTime);
+
+                foreach (var current in currentMoves)
+                {
+                    var newStates = new List<MoveState>();
+
+                    // at the start of the next second, the space ship gets to move on to the next move state and position
+                    var newSpeedsX = current.TimeLeftX == 0 ? speedDiffs.Select(d => current.SpeedX + d) : [current.SpeedX];
+                    var newSpeedsY = current.TimeLeftY == 0 ? speedDiffs.Select(d => current.SpeedY + d) : [current.SpeedY];
+                    foreach (var newSpeedX in newSpeedsX)
+                    {
+                        if (newSpeedX < minSpeed || newSpeedX > maxSpeed)
+                        {
+                            continue;
+                        }
+
+                        foreach (var newSpeedY in newSpeedsY)
+                        {
+                            if (newSpeedY < minSpeed || newSpeedY > maxSpeed)
+                            {
+                                continue;
+                            }
+
+                            var dirX = current.TimeLeftX == 0 ? Math.Sign(newSpeedX) : 0;
+                            var dirY = current.TimeLeftY == 0 ? Math.Sign(newSpeedY) : 0;
+
+                            var newPos = new Vector2(current.Position.X + dirX, current.Position.Y + dirY);
+
+                            if (newPos.X < minX || newPos.X > maxX || newPos.Y < minY || newPos.Y > maxY || forbidden.Contains(newPos))
+                            {
+                                continue;
+                            }
+
+                            var newState = new MoveState()
+                            {
+                                Position = newPos,
+                                SpeedX = newSpeedX,
+                                PaceX = GetPace(newSpeedX),
+                                SpeedY = newSpeedY,
+                                PaceY = GetPace(newSpeedY),
+                                Previous = current
+                            };
+                            newState.AddMoveX = current.TimeLeftX == 0 ? newState.PaceX.ToString() : string.Empty;
+                            newState.AddMoveY = current.TimeLeftY == 0 ? newState.PaceY.ToString() : string.Empty;
+                            newState.TimeLeftX = current.TimeLeftX > 0 ? current.TimeLeftX : GetTimeLeft(newState.PaceX);
+                            newState.TimeLeftY = current.TimeLeftY > 0 ? current.TimeLeftY : GetTimeLeft(newState.PaceY);
+                            newStates.Add(newState);
+                        }
+                    }
 
 
 
+                    // now let the new states sit on their position until the smaller waiting time is over
+                    foreach (var newState in newStates)
+                    {
+                        var waitTime = Math.Min(newState.TimeLeftX, newState.TimeLeftY);
+                        newState.TimeLeftX -= waitTime;
+                        newState.TimeLeftY -= waitTime;
+                        newState.Time = current.Time + waitTime;
+
+                        if (newState.Position == data.StationPosition)
+                        {
+                            if (newState.SpeedX <= 1 && newState.SpeedY <= 1)
+                            {
+                                // we found our solution!
+                                finalState = newState;
+                                break;
+                            }
+                            else
+                            {
+                                // reached station but too fast
+                                continue;
+                            }
+                        }
+
+                        if (newState.Time > data.TimeLimit)
+                        {
+                            continue;
+                        }
+
+                        if (!CanReach(newState, data))
+                        {
+                            continue;
+                        }
+
+                        if (!moveStates.TryGetValue(newState.Time, out var movesList))
+                        {
+                            movesList = new List<MoveState>();
+                            moveStates[newState.Time] = movesList;
+                        }
+                        movesList.Add(newState);
+
+                    }
+                }
+
+            }
+
+
+
+            // create steps in order
+            var xSteps = new List<string>();
+            var xSpeeds = new List<int>();
+            var ySteps = new List<string>();
+            var ySpeeds = new List<int>();
+
+            var positions = new List<Vector2>();
+
+            var currentState = finalState;
+            while (true)
+            {
+                if (!string.IsNullOrEmpty(currentState.AddMoveX))
+                {
+                    xSteps.Add(currentState.AddMoveX);
+                    xSpeeds.Add(currentState.SpeedX);
+                }
+                if (!string.IsNullOrEmpty(currentState.AddMoveY))
+                {
+                    ySteps.Add(currentState.AddMoveY);
+                    ySpeeds.Add(currentState.SpeedY);
+                }
+                positions.Add(currentState.Position);
+                if (currentState.Previous != null)
+                {
+                    currentState = currentState.Previous;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+
+
+            xSteps.Reverse();
+            ySteps.Reverse();
+            xSpeeds.Reverse();
+            ySpeeds.Reverse();
+            positions.Reverse();
+
+            // might have to stand still in one direction until the last movement in the other one is finished
+            for (int xLeft = 0; xLeft < finalState.TimeLeftX; xLeft++)
+            {
+                ySteps.Add("0");
+                ySpeeds.Add(0);
+            }
+            for (int yLeft = 0; yLeft < finalState.TimeLeftY; yLeft++)
+            {
+                xSteps.Add("0");
+                xSpeeds.Add(0);
+            }
+
+
+            xSteps.Add("0");
+            ySteps.Add("0");
+
+            /*
             var bestPath = GetShortestPath(Vector2.Zero, new Vector2(stationPosX, stationPosY), new Vector2(minX, minY), new Vector2(maxX, maxY), forbidden);
 
             var directions = new List<Vector2>();
@@ -546,12 +743,21 @@ public partial class Solver
 
             OptimizePath(xSteps, ySteps);
 
+            */
 
-            var resultLine = string.Join(' ', xSteps.Select(i => i.ToString()));
+
+            var resultLine = string.Join(' ', xSteps);
+            Console.WriteLine(resultLine);
             fullResult.AppendLine(resultLine);
 
-            resultLine = string.Join(' ', ySteps.Select(i => i.ToString()));
+            resultLine = string.Join(' ', ySteps);
+            Console.WriteLine(resultLine);
             fullResult.AppendLine(resultLine);
+
+            Console.WriteLine(string.Join(' ', xSpeeds.Select(i => i.ToString())));
+            Console.WriteLine(string.Join(' ', ySpeeds.Select(i => i.ToString())));
+
+            Console.WriteLine(string.Join(' ', positions.Select(i => i.ToString())));
 
             if (i < actualLines.Count - 1)
             {
@@ -560,6 +766,87 @@ public partial class Solver
         }
 
         return fullResult.ToString();
+    }
+
+    private bool CanReach(MoveState newState, DataSet data)
+    {
+        if (!CanReach(newState.Position.X, data.StationPosition.X, newState.SpeedX, data.TimeLimit - newState.Time))
+        {
+            return false;
+        }
+        if (!CanReach(newState.Position.Y, data.StationPosition.Y, newState.SpeedY, data.TimeLimit - newState.Time))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    private bool CanReach(float current, float target, int speed, int timeLimit)
+    {
+        var dir = target - current;
+        var dist = (int)Math.Abs(dir);
+        var absSpeed = Math.Abs(speed);
+
+        var timeUsed = 0;
+
+        if (dir * speed < 0)
+        {
+            // wrong direction, need to turn around
+            // 1 second for standing still
+            timeUsed = 1;
+            for (int i = 1; i <= absSpeed; i++)
+            {
+                timeUsed += GetPace(absSpeed);
+
+            }
+            // still moves into wrong direction while slowing down
+            dist += absSpeed - 1;
+            absSpeed = 0;
+            if (timeUsed > timeLimit)
+            {
+                return false;
+            }
+        }
+
+        var maxSpeed = 5;
+
+        // need the first meters to accelerate to max speed ( maxSpeed - absSpeed - 1)
+        // need the last meters to decelerate (maxSpeed - 1 meters, 4s + 3s + 2s + 1s + 1s for standing still = 11
+        if (dist >= 8 - absSpeed)
+        {
+            for (int i = absSpeed; i < maxSpeed; i++)
+            {
+                timeUsed += GetPace(i);
+            }
+            timeUsed += dist - 8 + 11;
+            if (timeUsed > timeLimit)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int GetTimeLeft(int pace)
+    {
+        if (pace == 0)
+        {
+            return 1;
+        }
+        return Math.Abs(pace);
+    }
+
+    private int GetPace(int speed)
+    {
+        if (speed == 0)
+        {
+            return 0;
+        }
+        if (speed > 0)
+        {
+            return 6 - speed;
+        }
+        return -6 - speed;
     }
 
     private void OptimizePath(List<int> xSteps, List<int> ySteps)
@@ -619,7 +906,7 @@ public partial class Solver
             if (!changed)
             {
                 break;
-            } 
+            }
         }
     }
 
