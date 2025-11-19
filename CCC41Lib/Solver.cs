@@ -475,16 +475,19 @@ public partial class Solver
                 AddMoveX = "0",
                 AddMoveY = "0",
             };
+            state.TimeToReachX = TimeToReachX(state, data);
+            state.TimeToReachY = TimeToReachY(state, data);
+            state.TotalTimeToReach = TimeToReach(state, data);
 
-            // time, movestates at this time
+            // total time it would take at this position and speed, movestates at this time
             var moveStates = new Dictionary<int, List<MoveState>>();
-            moveStates.Add(0, [state]);
+            moveStates.Add(state.TotalTimeToReach, [state]);
 
             MoveState? finalState = null;
 
             var speedDiffs = new List<int>
             {
-                -1, 0, 1
+                1, 0, -1
             };
             var minSpeed = -5;
             var maxSpeed = 5;
@@ -499,99 +502,105 @@ public partial class Solver
 
                 var minTime = moveStates.Min(m => m.Key);
                 var currentMoves = moveStates[minTime];
-                moveStates.Remove(minTime);
 
-                foreach (var current in currentMoves)
+                var current = currentMoves.First();
+
+                currentMoves.Remove(current);
+
+                if (currentMoves.Count == 0)
                 {
-                    var newStates = new List<MoveState>();
+                    moveStates.Remove(minTime);
+                }
 
-                    // at the start of the next second, the space ship gets to move on to the next move state and position
-                    var newSpeedsX = current.TimeLeftX == 0 ? speedDiffs.Select(d => current.SpeedX + d) : [current.SpeedX];
-                    var newSpeedsY = current.TimeLeftY == 0 ? speedDiffs.Select(d => current.SpeedY + d) : [current.SpeedY];
-                    foreach (var newSpeedX in newSpeedsX)
+
+                var newStates = new List<MoveState>();
+
+                // at the start of the next second, the space ship gets to move on to the next move state and position
+                var newSpeedsX = current.TimeLeftX == 0 ? speedDiffs.Select(d => current.SpeedX + d) : [current.SpeedX];
+                var newSpeedsY = current.TimeLeftY == 0 ? speedDiffs.Select(d => current.SpeedY + d) : [current.SpeedY];
+                foreach (var newSpeedX in newSpeedsX)
+                {
+                    if (newSpeedX < minSpeed || newSpeedX > maxSpeed)
                     {
-                        if (newSpeedX < minSpeed || newSpeedX > maxSpeed)
-                        {
-                            continue;
-                        }
-
-                        foreach (var newSpeedY in newSpeedsY)
-                        {
-                            if (newSpeedY < minSpeed || newSpeedY > maxSpeed)
-                            {
-                                continue;
-                            }
-
-                            var dirX = current.TimeLeftX == 0 ? Math.Sign(newSpeedX) : 0;
-                            var dirY = current.TimeLeftY == 0 ? Math.Sign(newSpeedY) : 0;
-
-                            var newPos = new Vector2(current.Position.X + dirX, current.Position.Y + dirY);
-
-                            if (newPos.X < minX || newPos.X > maxX || newPos.Y < minY || newPos.Y > maxY || forbidden.Contains(newPos))
-                            {
-                                continue;
-                            }
-
-                            var newState = new MoveState()
-                            {
-                                Position = newPos,
-                                SpeedX = newSpeedX,
-                                PaceX = GetPace(newSpeedX),
-                                SpeedY = newSpeedY,
-                                PaceY = GetPace(newSpeedY),
-                                Previous = current
-                            };
-                            newState.AddMoveX = current.TimeLeftX == 0 ? newState.PaceX.ToString() : string.Empty;
-                            newState.AddMoveY = current.TimeLeftY == 0 ? newState.PaceY.ToString() : string.Empty;
-                            newState.TimeLeftX = current.TimeLeftX > 0 ? current.TimeLeftX : GetTimeLeft(newState.PaceX);
-                            newState.TimeLeftY = current.TimeLeftY > 0 ? current.TimeLeftY : GetTimeLeft(newState.PaceY);
-                            newStates.Add(newState);
-                        }
+                        continue;
                     }
 
-
-
-                    // now let the new states sit on their position until the smaller waiting time is over
-                    foreach (var newState in newStates)
+                    foreach (var newSpeedY in newSpeedsY)
                     {
-                        var waitTime = Math.Min(newState.TimeLeftX, newState.TimeLeftY);
-                        newState.TimeLeftX -= waitTime;
-                        newState.TimeLeftY -= waitTime;
-                        newState.Time = current.Time + waitTime;
-
-                        if (newState.Position == data.StationPosition)
-                        {
-                            if (newState.SpeedX <= 1 && newState.SpeedY <= 1)
-                            {
-                                // we found our solution!
-                                finalState = newState;
-                                break;
-                            }
-                            else
-                            {
-                                // reached station but too fast
-                                continue;
-                            }
-                        }
-
-                        if (newState.Time > data.TimeLimit)
+                        if (newSpeedY < minSpeed || newSpeedY > maxSpeed)
                         {
                             continue;
                         }
 
-                        if (!CanReach(newState, data))
-                        {
-                            continue;
-                        }
 
-                        if (!moveStates.TryGetValue(newState.Time, out var movesList))
+                        var newState = new MoveState()
                         {
-                            movesList = new List<MoveState>();
-                            moveStates[newState.Time] = movesList;
+                            SpeedX = newSpeedX,
+                            PaceX = GetPace(newSpeedX),
+                            SpeedY = newSpeedY,
+                            PaceY = GetPace(newSpeedY),
+                            Previous = current
+                        };
+                        newState.AddMoveX = current.TimeLeftX == 0 ? newState.PaceX.ToString() : string.Empty;
+                        newState.AddMoveY = current.TimeLeftY == 0 ? newState.PaceY.ToString() : string.Empty;
+                        newState.TimeLeftX = current.TimeLeftX > 0 ? current.TimeLeftX : GetTimeLeft(newState.PaceX);
+                        newState.TimeLeftY = current.TimeLeftY > 0 ? current.TimeLeftY : GetTimeLeft(newState.PaceY);
+                        newStates.Add(newState);
+                    }
+                }
+
+                // now let the new states sit on their current position until the smaller waiting time is over and then move to new position
+                foreach (var newState in newStates)
+                {
+                    var waitTime = Math.Min(newState.TimeLeftX, newState.TimeLeftY);
+                    newState.TimeLeftX -= waitTime;
+                    newState.TimeLeftY -= waitTime;
+                    newState.Time = current.Time + waitTime;
+
+                    var dirX = newState.TimeLeftX == 0 ? Math.Sign(newState.SpeedX) : 0;
+                    var dirY = newState.TimeLeftY == 0 ? Math.Sign(newState.SpeedY) : 0;
+
+                    var newPos = new Vector2(current.Position.X + dirX, current.Position.Y + dirY);
+
+                    if (newPos.X < minX || newPos.X > maxX || newPos.Y < minY || newPos.Y > maxY || forbidden.Contains(newPos))
+                    {
+                        continue;
+                    }
+                    newState.Position = newPos;
+
+                    newState.TimeToReachX = TimeToReachX(newState, data) + newState.TimeLeftX;
+                    newState.TimeToReachY = TimeToReachY(newState, data) + newState.TimeLeftY;
+                    newState.TotalTimeToReach = newState.Time + Math.Max(newState.TimeToReachX, newState.TimeToReachY);
+
+                    if (newState.Position == data.StationPosition)
+                    {
+                        if (newState.SpeedX <= 1 && newState.SpeedY <= 1)
+                        {
+                            // we found our solution!
+                            finalState = newState;
+                            break;
                         }
-                        movesList.Add(newState);
 
                     }
+
+                    if (newState.Time > data.TimeLimit)
+                    {
+                        continue;
+                    }
+
+                    if (!CanReach(newState, data))
+                    {
+                        continue;
+                    }
+
+                    if (!moveStates.TryGetValue(newState.TotalTimeToReach, out var movesList))
+                    {
+                        movesList = new List<MoveState>();
+                        moveStates[newState.TotalTimeToReach] = movesList;
+                    }
+                    movesList.Add(newState);
+
+
                 }
 
             }
@@ -781,6 +790,104 @@ public partial class Solver
         return true;
     }
 
+    private int TimeToReach(MoveState state, DataSet data)
+    {
+        return Math.Max(TimeToReach((int)state.Position.X, (int)data.StationPosition.X, state.SpeedX),
+                        TimeToReach((int)state.Position.Y, (int)data.StationPosition.Y, state.SpeedY));
+    }
+    private int TimeToReachX(MoveState state, DataSet data)
+    {
+        return TimeToReach((int)state.Position.X, (int)data.StationPosition.X, state.SpeedX);
+    }
+
+    private int TimeToReachY(MoveState state, DataSet data)
+    {
+        return TimeToReach((int)state.Position.Y, (int)data.StationPosition.Y, state.SpeedY);
+    }
+
+
+    private int TimeToReach(int current, int target, int speed)
+    {
+        var dir = target - current;
+        var dist = (int)Math.Abs(dir);
+        var absSpeed = Math.Abs(speed);
+
+        var timeUsed = 0;
+
+        if (dir * speed < 0)
+        {
+            // wrong direction, need to turn around
+            // eg decelerating from speed 5: pace(speed 4) + pace(speed 3) + pace(speed 2) + pace(speed 1)
+            //  + 1 second for standing still at the end of th deceleration
+            timeUsed = 1;
+            for (int i = 1; i < absSpeed; i++)
+            {
+                timeUsed += GetPace(absSpeed);
+
+            }
+            // still moves into wrong direction while slowing down, distance increases
+            dist += absSpeed - 1;
+            absSpeed = 0;
+        }
+
+        var maxSpeed = 5;
+
+        // can reach target without overshooting
+        // eg at speed 4 we need 3m to slow down: pace(speed 3) + pace(speed2) + pace(speed1)
+        if (dist + 1 >= absSpeed)
+        {
+            // from the target, move back towards the current position and increase speed until the distance is filled or it matches the spaceship's speed
+            var currentSpeed = 0;
+            while (currentSpeed < absSpeed && dist > 0)
+            {
+                currentSpeed++;
+                timeUsed += GetPace(currentSpeed);
+                dist--;
+            }
+
+            while (dist > 0)
+            {
+                // symmetrically incease speed from spaceship and current position unless max speed is reached
+                if (currentSpeed < maxSpeed)
+                {
+                    currentSpeed++;
+                    if (dist > 1)
+                    {
+                        timeUsed += 2 * GetPace(currentSpeed);
+                        dist -= 2;
+                    }
+                    else
+                    {
+                        timeUsed += GetPace(currentSpeed);
+                        dist -= 1;
+                    }
+                }
+                else
+                {
+                    timeUsed += dist * GetPace(maxSpeed);
+                    dist = 0;
+                }
+            }
+
+        }
+        else
+        {
+            // we overshoot, so we have to stop and turn back
+            // decelerate
+            for (int i = 1; i < absSpeed; i++)
+            {
+                timeUsed += GetPace(absSpeed);
+            }
+            // 1 second for standing still
+            timeUsed += 1;
+
+            var newDist = absSpeed - 1 - dist;
+            timeUsed += TimeToReach(0, newDist, 0);
+        }
+        return timeUsed;
+    }
+
+
     private bool CanReach(float current, float target, int speed, int timeLimit)
     {
         var dir = target - current;
@@ -792,9 +899,9 @@ public partial class Solver
         if (dir * speed < 0)
         {
             // wrong direction, need to turn around
-            // 1 second for standing still
+            //  + 1 second for standing still
             timeUsed = 1;
-            for (int i = 1; i <= absSpeed; i++)
+            for (int i = 1; i < absSpeed; i++)
             {
                 timeUsed += GetPace(absSpeed);
 

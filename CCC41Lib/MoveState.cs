@@ -20,5 +20,8 @@ internal class MoveState
     public string AddMoveX { get; set; } = string.Empty;
     public string AddMoveY { get; set; } = string.Empty;
     public MoveState? Previous { get; set; }
+    public int TimeToReachX { get; set; }
+    public int TimeToReachY { get; set; }
+    public int TotalTimeToReach { get; set; }
 
 }
