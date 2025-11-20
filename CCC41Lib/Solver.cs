@@ -2,6 +2,7 @@
 using System.Numerics;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.Channels;
 
 namespace CCC41Lib;
 
@@ -299,15 +300,15 @@ public partial class Solver
 
 
 
-    private List<int> CalculateMovementSequence(int stationPos)
+    private List<int> CalculateMovementSequence(int targetPos)
     {
         var result = new List<int>();
 
-        if (Math.Abs(stationPos) >= 9)
+        if (Math.Abs(targetPos) >= 9)
         {
             result.AddRange([5, 4, 3, 2, 1]); // accel
 
-            int additionalOnes = Math.Abs(stationPos) - 9;
+            int additionalOnes = Math.Abs(targetPos) - 9;
 
             for (int i = 0; i < additionalOnes; i++)
             {
@@ -319,7 +320,7 @@ public partial class Solver
         else // pos < 9
         {
             var steps = new List<int> { 5, 4, 3, 2, 1, 2, 3, 4, 5 };
-            var toRemove = 9 - Math.Abs(stationPos);
+            var toRemove = 9 - Math.Abs(targetPos);
 
             for (int i = 0; i < toRemove; i++)
             {
@@ -454,17 +455,64 @@ public partial class Solver
                 }
             }
 
-            var minX = Math.Min(0, stationPosX) - 3;
-            var minY = Math.Min(0, stationPosY) - 3;
-            var maxX = Math.Max(0, stationPosX) + 3;
-            var maxY = Math.Max(0, stationPosY) + 3;
-
             var data = new DataSet()
             {
                 StationPosition = new Vector2(stationPosX, stationPosY),
                 Asteroids = [new Vector2(asteroidX, asteroidY)],
                 TimeLimit = timeLimit
             };
+
+            var corners = new List<Vector2>()
+            {
+                new Vector2(asteroidX - 3, asteroidY - 3),
+                new Vector2(asteroidX - 3, asteroidY + 3),
+                new Vector2(asteroidX + 3, asteroidY - 3),
+                new Vector2(asteroidX + 3, asteroidY + 3),
+            };
+
+            // closest corner to start position
+            var cornersByDistance = corners.OrderBy(c => (c - data.StartPosition).LengthSquared());
+
+            var firstCorner = cornersByDistance.First();
+            var adjacentCorners = corners.Where(c => c.X == firstCorner.X || c.Y == firstCorner.Y);
+
+
+            // closest corner to target position
+            var adjacentCornersByDistance = adjacentCorners.OrderBy(c => (data.StationPosition - c).LengthSquared());
+            var secondCorner = adjacentCornersByDistance.First();
+
+            var (xSteps, ySteps) = GetSequences(data.StationPosition, firstCorner);
+
+            var (middleSequenceX, middleSequenceY) = firstCorner != secondCorner ?
+                                                    GetSequences(firstCorner, secondCorner) :
+                                                    (new List<int>(), new List<int>());
+
+            var (endSequenceX, endSequenceY) = GetSequences(secondCorner, data.StationPosition);
+
+            xSteps.AddRange(middleSequenceX);
+            xSteps.AddRange(endSequenceX);
+            ySteps.AddRange(middleSequenceY);
+            ySteps.AddRange(endSequenceY);
+
+            xSteps.Insert(0, 0);
+            xSteps.Add(0);
+            ySteps.Insert(0, 0);
+            ySteps.Add(0);
+
+            var xTime = CalculateTime(xSteps);
+            var yTime = CalculateTime(ySteps);
+            var totalTime = Math.Max(xTime, yTime);
+
+
+            /*
+            var minX = Math.Min(0, stationPosX) - 3;
+            var minY = Math.Min(0, stationPosY) - 3;
+            var maxX = Math.Max(0, stationPosX) + 3;
+            var maxY = Math.Max(0, stationPosY) + 3;
+
+
+
+
 
 
             var state = new MoveState()
@@ -543,8 +591,8 @@ public partial class Solver
                         };
                         newState.AddMoveX = current.TimeLeftX == 0 ? newState.PaceX.ToString() : string.Empty;
                         newState.AddMoveY = current.TimeLeftY == 0 ? newState.PaceY.ToString() : string.Empty;
-                        newState.TimeLeftX = current.TimeLeftX > 0 ? current.TimeLeftX : GetTimeLeft(newState.PaceX);
-                        newState.TimeLeftY = current.TimeLeftY > 0 ? current.TimeLeftY : GetTimeLeft(newState.PaceY);
+                        newState.TimeLeftX = current.TimeLeftX > 0 ? current.TimeLeftX : GetTimeForStep(newState.PaceX);
+                        newState.TimeLeftY = current.TimeLeftY > 0 ? current.TimeLeftY : GetTimeForStep(newState.PaceY);
                         newStates.Add(newState);
                     }
                 }
@@ -662,7 +710,7 @@ public partial class Solver
 
             xSteps.Add("0");
             ySteps.Add("0");
-
+            */
             /*
             var bestPath = GetShortestPath(Vector2.Zero, new Vector2(stationPosX, stationPosY), new Vector2(minX, minY), new Vector2(maxX, maxY), forbidden);
 
@@ -763,10 +811,9 @@ public partial class Solver
             Console.WriteLine(resultLine);
             fullResult.AppendLine(resultLine);
 
-            Console.WriteLine(string.Join(' ', xSpeeds.Select(i => i.ToString())));
-            Console.WriteLine(string.Join(' ', ySpeeds.Select(i => i.ToString())));
-
-            Console.WriteLine(string.Join(' ', positions.Select(i => i.ToString())));
+            Console.WriteLine($"Time: {totalTime}, limit: {data.TimeLimit}");
+            var validText = totalTime <= data.TimeLimit ? "Valid" : "INVALID!!!!! Taking too long!!!!";
+            Console.WriteLine(validText);
 
             if (i < actualLines.Count - 1)
             {
@@ -775,6 +822,56 @@ public partial class Solver
         }
 
         return fullResult.ToString();
+    }
+
+    private (List<int> sequenceX, List<int> sequenceY) GetSequences(Vector2 start, Vector2 end)
+    {
+        var dir = end - start;
+        var sequenceX = CalculateMovementSequence((int)(dir.X));
+        if (dir.X < 0)
+        {
+            sequenceX = sequenceX.Select(x => -1 * x).ToList();
+        }
+
+        var sequenceY = CalculateMovementSequence((int)(end.Y - start.Y));
+        if (dir.X < 0)
+        {
+            sequenceX = sequenceX.Select(x => -1 * x).ToList();
+        }
+
+        // stand still when finished in the faster direction until the slower direction is done moving
+        var timeX = CalculateTime(sequenceX);
+        var timeY = CalculateTime(sequenceY);
+
+        var timeDiff = timeX - timeY;
+
+        if (timeDiff > 0)
+        {
+            // X takes longer
+            for (int i = 0; i < Math.Abs(timeDiff); i++)
+            {
+                sequenceY.Add(0);
+            }
+        }
+        else if (timeDiff < 0)
+        {
+            // X takes longer
+            for (int i = 0; i < Math.Abs(timeDiff); i++)
+            {
+                sequenceY.Add(0);
+            }
+        }
+        return (sequenceX, sequenceY);
+    }
+
+    private int CalculateTime(List<int> sequence)
+    {
+        var sum = 0;
+        foreach (var step in sequence)
+        {
+            sum += GetTimeForStep(step);
+        }
+        return sum;
     }
 
     private bool CanReach(MoveState newState, DataSet data)
@@ -934,7 +1031,7 @@ public partial class Solver
         return true;
     }
 
-    private int GetTimeLeft(int pace)
+    private int GetTimeForStep(int pace)
     {
         if (pace == 0)
         {
