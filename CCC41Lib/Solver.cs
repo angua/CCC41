@@ -457,7 +457,7 @@ public partial class Solver
 
             var data = new DataSet()
             {
-                StationPosition = new Vector2(stationPosX, stationPosY),
+                TargetPosition = new Vector2(stationPosX, stationPosY),
                 Asteroids = [new Vector2(asteroidX, asteroidY)],
                 TimeLimit = timeLimit
             };
@@ -478,16 +478,16 @@ public partial class Solver
 
 
             // closest corner to target position
-            var adjacentCornersByDistance = adjacentCorners.OrderBy(c => (data.StationPosition - c).LengthSquared());
+            var adjacentCornersByDistance = adjacentCorners.OrderBy(c => (data.TargetPosition - c).LengthSquared());
             var secondCorner = adjacentCornersByDistance.First();
 
-            var (xSteps, ySteps) = GetSequences(data.StationPosition, firstCorner);
+            var (xSteps, ySteps) = GetSequences(data.TargetPosition, firstCorner);
 
             var (middleSequenceX, middleSequenceY) = firstCorner != secondCorner ?
                                                     GetSequences(firstCorner, secondCorner) :
                                                     (new List<int>(), new List<int>());
 
-            var (endSequenceX, endSequenceY) = GetSequences(secondCorner, data.StationPosition);
+            var (endSequenceX, endSequenceY) = GetSequences(secondCorner, data.TargetPosition);
 
             xSteps.AddRange(middleSequenceX);
             xSteps.AddRange(endSequenceX);
@@ -876,11 +876,11 @@ public partial class Solver
 
     private bool CanReach(MoveState newState, DataSet data)
     {
-        if (!CanReach(newState.Position.X, data.StationPosition.X, newState.SpeedX, data.TimeLimit - newState.Time))
+        if (!CanReach(newState.Position.X, data.TargetPosition.X, newState.SpeedX, data.TimeLimit - newState.Time))
         {
             return false;
         }
-        if (!CanReach(newState.Position.Y, data.StationPosition.Y, newState.SpeedY, data.TimeLimit - newState.Time))
+        if (!CanReach(newState.Position.Y, data.TargetPosition.Y, newState.SpeedY, data.TimeLimit - newState.Time))
         {
             return false;
         }
@@ -889,17 +889,17 @@ public partial class Solver
 
     private int TimeToReach(MoveState state, DataSet data)
     {
-        return Math.Max(TimeToReach((int)state.Position.X, (int)data.StationPosition.X, state.SpeedX),
-                        TimeToReach((int)state.Position.Y, (int)data.StationPosition.Y, state.SpeedY));
+        return Math.Max(TimeToReach((int)state.Position.X, (int)data.TargetPosition.X, state.SpeedX),
+                        TimeToReach((int)state.Position.Y, (int)data.TargetPosition.Y, state.SpeedY));
     }
     private int TimeToReachX(MoveState state, DataSet data)
     {
-        return TimeToReach((int)state.Position.X, (int)data.StationPosition.X, state.SpeedX);
+        return TimeToReach((int)state.Position.X, (int)data.TargetPosition.X, state.SpeedX);
     }
 
     private int TimeToReachY(MoveState state, DataSet data)
     {
-        return TimeToReach((int)state.Position.Y, (int)data.StationPosition.Y, state.SpeedY);
+        return TimeToReach((int)state.Position.Y, (int)data.TargetPosition.Y, state.SpeedY);
     }
 
 

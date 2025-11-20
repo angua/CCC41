@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCC41", "CCC41\CCC41.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCC41Lib", "CCC41Lib\CCC41Lib.csproj", "{1036B1C9-218E-420B-8D4C-E905C78DA039}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonWPF", "CommonWPF\CommonWPF.csproj", "{29FC50C0-BE18-C3FB-E9EC-5A9CC7EAEAED}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCCUI", "CCC41UI\CCCUI.csproj", "{00CF834D-450E-998A-4A6F-C0A5D98BD205}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{1036B1C9-218E-420B-8D4C-E905C78DA039}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1036B1C9-218E-420B-8D4C-E905C78DA039}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1036B1C9-218E-420B-8D4C-E905C78DA039}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29FC50C0-BE18-C3FB-E9EC-5A9CC7EAEAED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29FC50C0-BE18-C3FB-E9EC-5A9CC7EAEAED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29FC50C0-BE18-C3FB-E9EC-5A9CC7EAEAED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29FC50C0-BE18-C3FB-E9EC-5A9CC7EAEAED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{00CF834D-450E-998A-4A6F-C0A5D98BD205}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00CF834D-450E-998A-4A6F-C0A5D98BD205}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00CF834D-450E-998A-4A6F-C0A5D98BD205}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00CF834D-450E-998A-4A6F-C0A5D98BD205}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
