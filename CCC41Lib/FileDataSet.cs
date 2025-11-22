@@ -4,13 +4,13 @@ namespace CCC41Lib;
 
 public class FileDataSet
 {
-    private string _file = string.Empty;
+    public string FilePath = string.Empty;
 
     public FileDataSet(int level, string file)
     {
         Level = level;
         DataSets = Parse(Level, file);
-        _file = file;
+        FilePath = file;
     }
 
     public FileDataSet(int level, List<string> lines)
@@ -18,7 +18,6 @@ public class FileDataSet
         Level = level;
         DataSets = Parse(Level, lines);
     }
-
 
     public int Level { get; set; }
 

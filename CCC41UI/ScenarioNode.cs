@@ -7,8 +7,10 @@ class ScenarioNode
 {
     public ObservableCollection<ScenarioNode> Children { get; set; } = new();
 
-    public FileDataSet FileDataSet { get; set; }
+    public int Level { get; set; }
 
-    public string Name { get; set; }
+    public FileDataSet? FileDataSet { get; set; }
+
+    public string Name { get; set; } = string.Empty;
 
 }

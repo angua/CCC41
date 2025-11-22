@@ -64,7 +64,7 @@ class MainViewModel : ViewModelBase
                 XSequence = value.XSequenceString;
                 YSequence = value.YSequenceString;
                 PathPositions.Clear();
-
+                DataSetErrors = string.Join("\n", CurrentDataSet.ErrorText);
                 DrawDataSet(value);
             }
             TimeUsed = 0;
@@ -86,6 +86,25 @@ class MainViewModel : ViewModelBase
         set => SetValue(value);
     }
     public string YSequence
+    {
+        get => GetValue<string>();
+        set => SetValue(value);
+    }
+
+    public bool DataSetValid
+    {
+        get => GetValue<bool>();
+        set => SetValue(value);
+    }
+
+    public string ValidityOverview
+    {
+        get => GetValue<string>();
+        set => SetValue(value);
+    }
+
+
+    public string DataSetErrors
     {
         get => GetValue<string>();
         set => SetValue(value);
@@ -156,14 +175,7 @@ class MainViewModel : ViewModelBase
 
         FindPath = new RelayCommand(CanFindPath, DoFindPath);
 
-        /*
-        FindPathNextStep = new RelayCommand(CanFindPathNextStep, DoFindPathNextStep);
-
-        PreviousPath = new RelayCommand(CanPreviousPath, DoPreviousPath);
-        NextPath = new RelayCommand(CanNextPath, DoNextPath);
-
-        ClearPath = new RelayCommand(CanClearPath, DoClearPath);
-        */
+        WriteOutputFiles = new RelayCommand(CanWriteOutputFiles, DoWriteOutputFiles);
     }
 
     public RelayCommand PreviousDataSet { get; }
@@ -199,94 +211,53 @@ class MainViewModel : ViewModelBase
         YSequence = CurrentDataSet.YSequenceString;
         SetPathPositions();
         TimeUsed = CurrentDataSet.TimeUsed;
+        DataSetValid = CurrentDataSet.Valid;
+        DataSetErrors = string.Join("\n", CurrentDataSet.ErrorText);
         DrawDataSet(CurrentDataSet);
-
     }
 
-    private void SetPathPositions()
-    {
-        PathPositions.Clear();
-        foreach (var pos in CurrentDataSet.TimedPositions)
-        {
-            PathPositions.Add(CurrentDataSet.GetGridPosition(pos.Value));
-        }
-    }
-
-
-
-    /*
-    public RelayCommand PreviousPath { get; }
-    public bool CanPreviousPath()
-    {
-        return CurrentDataSet != null && CurrentPathIndex > 0;
-    }
-    public void DoPreviousPath()
-    {
-        CurrentLastPathstep = CurrentDataSet.AllLastSteps[--CurrentPathIndex];
-    }
-
-    public RelayCommand NextPath { get; }
-    public bool CanNextPath()
-    {
-        return CurrentDataSet != null && CurrentPathIndex < CurrentDataSet.AllLastSteps.Count - 1;
-    }
-    public void DoNextPath()
-    {
-        CurrentLastPathstep = CurrentDataSet.AllLastSteps[++CurrentPathIndex];
-    }
-
-
-
-
-    public RelayCommand FindPathNextStep { get; }
-    public bool CanFindPathNextStep()
+    public RelayCommand WriteOutputFiles { get; }
+    public bool CanWriteOutputFiles()
     {
         return true;
     }
-    public void DoFindPathNextStep()
+    public void DoWriteOutputFiles()
     {
-        var useCycles = false;
-        if (CurrentFileDataSet.Level == 6 || CurrentFileDataSet.Level == 7)
+        var inputFiles = FilesCollection.Where(f => f.Level == Level && f.FileDataSet != null);
+
+        var invalidText = new List<string>();
+
+        foreach (var fileNode in inputFiles)
         {
-            useCycles = true;
+            var outputFile = fileNode.FileDataSet.FilePath.Replace(".in", ".out");
+            using var outputWriter = new StreamWriter(outputFile);
+
+
+            var invalidDataSets = new List<int>();
+
+            for (int i = 0; i < fileNode.FileDataSet.DataSets.Count; i++)
+            {
+                DataSet? dataSet = fileNode.FileDataSet.DataSets[i];
+                _solver.Solve(Level, dataSet);
+                if (!dataSet.Valid)
+                {
+                    invalidDataSets.Add(i);
+                }
+            }
+
+            if (invalidDataSets.Any())
+            {
+                invalidText.Add($"{fileNode.Name}: {string.Join(",", invalidDataSets)}");
+            }
+
+            var output = _solver.CreateOutput(fileNode.FileDataSet);
+            outputWriter.Write(output);
+
         }
 
-        _solver.FindPathNextStep(CurrentDataSet, useCycles);
-        _solver.CreateAllPaths(CurrentDataSet);
-
-        // rectangle method
-        if (CurrentDataSet.AllLastSteps.Count > 0)
-        {
-            AllPathCount = CurrentDataSet.AllLastSteps.Count;
-
-            CurrentPathIndex = 0;
-            CurrentLastPathstep = CurrentDataSet.AllLastSteps[CurrentPathIndex];
-            LastStepValid = CurrentDataSet.CorrectPathSteps.Last().IsValid.ToString();
-            StepCount = CurrentDataSet.PathStepsCount;
-        }
-
-        StepCount = CurrentDataSet.PathStepsCount;
-        Timing = _solver.Timing;
-
-        _solver.CreatePathfromSteps(CurrentDataSet);
-
-        DrawLawn(CurrentDataSet);
+        ValidityOverview = invalidText.Count > 0 ? string.Join("\n", invalidText) : "All data sets valid.";
     }
 
-    public RelayCommand ClearPath { get; }
-    public bool CanClearPath()
-    {
-        return true;
-    }
-    public void DoClearPath()
-    {
-        CurrentDataSet.ClearPath();
-        StepCount = 0;
-        Timing = 0;
-        AllPathCount = 0;
-        DrawLawn(CurrentDataSet);
-    }
-    */
 
     private void ParseData()
     {
@@ -307,7 +278,8 @@ class MainViewModel : ViewModelBase
             {
                 levelNode = new ScenarioNode()
                 {
-                    Name = levelName
+                    Name = levelName,
+                    Level = Level
                 };
                 FilesCollection.Add(levelNode);
             }
@@ -315,12 +287,20 @@ class MainViewModel : ViewModelBase
             levelNode.Children.Add(new ScenarioNode()
             {
                 Name = FileDataSetName,
-                FileDataSet = fileDataSet
+                FileDataSet = fileDataSet,
+                Level = Level
             });
-
         }
     }
 
+    private void SetPathPositions()
+    {
+        PathPositions.Clear();
+        foreach (var pos in CurrentDataSet.TimedPositions)
+        {
+            PathPositions.Add(CurrentDataSet.GetGridPosition(pos.Value));
+        }
+    }
 
     private void DrawDataSet(DataSet dataset)
     {
@@ -354,20 +334,6 @@ class MainViewModel : ViewModelBase
         }
 
 
-        /*
-        // fill pathing rectangles with different colors
-        for (int s = 0; s < lawn.CorrectPathSteps.Count; s++)
-        {
-            var step = lawn.CorrectPathSteps[s];
-            var rectangleColor = GetRectangleColor(s);
-
-            foreach (var pos in step.Path)
-            {
-                _bitmap.FillGridCell((int)pos.X, (int)pos.Y, rectangleColor);
-            }
-        }
-
-        */
         Image = new Image();
 
         Image.Stretch = Stretch.None;
@@ -377,19 +343,4 @@ class MainViewModel : ViewModelBase
         RaisePropertyChanged(nameof(Image));
     }
 
-    private Color GetRectangleColor(int s)
-    {
-        var div = s % 5;
-
-        return div switch
-        {
-            0 => Color.FromRgb(0, 12, 170),
-            1 => Color.FromRgb(45, 19, 241),
-            2 => Color.FromRgb(0, 210, 255),
-            3 => Color.FromRgb(0, 240, 220),
-            4 => Color.FromRgb(0, 133, 119),
-            _ => throw new InvalidOperationException($"Unknown color {s}")
-        };
-
-    }
 }

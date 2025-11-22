@@ -21,10 +21,10 @@ public class DataSet
     public List<int> YSequence { get; set; } = new();
     public string XSequenceString => string.Join(' ', XSequence);
     public string YSequenceString => string.Join(' ', YSequence);
-
     public Dictionary<int, Vector2> TimedPositions { get; set; } = new();
-
     public int TimeUsed { get; set; }
+    public bool Valid { get; set; }
+    public List<string> ErrorText { get; set; } = new();
 
     public Vector2 GetGridPosition(Vector2 position) => position - BoundsMin;
 

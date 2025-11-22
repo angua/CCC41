@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Numerics;
 using System.Security.Claims;
 using System.Text;
@@ -591,7 +592,104 @@ public partial class Solver
         Console.WriteLine(resultLine);
         result.Add(resultLine);
 
+        Validate(6, data);
+
+
+
         return result;
+    }
+
+    private void Validate(int level, DataSet data)
+    {
+        var valid = true;
+        data.ErrorText.Clear();
+
+        if (!ValidateSequence(data, data.XSequence))
+        {
+            valid = false;
+        }
+        if (!ValidateSequence(data, data.YSequence))
+        {
+            valid = false;
+        }
+        if (data.TimeUsed > data.TimeLimit)
+        {
+            valid = false;
+            data.ErrorText.Add("Taking too long.");
+        }
+        if (data.TimedPositions.Any(p => data.ForbiddenAreas.Contains(p.Value)))
+        {
+            valid = false;
+            data.ErrorText.Add("Hitting asteroid.");
+        }
+
+        data.Valid = valid;
+    }
+
+    private bool ValidateSequence(DataSet data, List<int> sequence)
+    {
+        var valid = true;
+        if (sequence.Count == 0)
+        {
+            valid = false;
+            data.ErrorText.Add("Sequence contains no elements.");
+        }
+        else
+        {
+            if (sequence.First() != 0)
+            {
+                valid = false;
+                data.ErrorText.Add("Sequence must start with 0.");
+            }
+            if (sequence.Last() != 0)
+            {
+                valid = false;
+                data.ErrorText.Add("Sequence must end with 0.");
+            }
+            for (int i = 0; i < sequence.Count - 1; i++)
+            {
+                var current = sequence[i];
+                var next = sequence[i + 1];
+
+                if (current < -5 || current > 5)
+                {
+                    valid = false;
+                    data.ErrorText.Add($"Invalid pace value {current}.");
+                }
+
+                if (!IsValidNextPace(current, next))
+                {
+                    valid = false;
+                    data.ErrorText.Add($"Invalid pace {next} after {current}.");
+                }
+            }
+        }
+
+        return valid;
+    }
+
+    private bool IsValidNextPace(int current, int next)
+    {
+        return ValidNextPaces(current).Contains(next);
+    }
+
+    private List<int> ValidNextPaces(int current)
+    {
+        return current switch
+        {
+            -5 => [0, -5, -4],
+            -4 => [-5, -4, -3],
+            -3 => [-4, -3, -2],
+            -2 => [-3, -2, -1],
+            -1 => [-2, -1],
+            0 => [0, -5, 5],
+            1 => [1, 2],
+            2 => [1, 2, 3],
+            3 => [2, 3, 4],
+            4 => [3, 4, 5],
+            5 => [0, 5, 4],
+            _ => [],
+        };
     }
 
     private void TryOrthogonalPath(DataSet data, Vector2 startPos, Vector2 targetPos, List<int> xSteps, List<int> ySteps, int timeLimit)
@@ -878,6 +976,11 @@ public partial class Solver
         return (sequenceX, sequenceY);
     }
 
+    /// <summary>
+    /// Calculate time used for a sequence of paces
+    /// </summary>
+    /// <param name="sequence"></param>
+    /// <returns></returns>
     private int CalculateTime(List<int> sequence)
     {
         var sum = 0;
@@ -1127,6 +1230,36 @@ public partial class Solver
             }
         }
     }
+
+    public string CreateOutput(FileDataSet fileDataSet)
+    {
+        var fullResult = new StringBuilder();
+
+        switch (fileDataSet.Level)
+        {
+            case 6:
+                for (var i = 0; i < fileDataSet.DataSets.Count; i++)
+                {
+                    var dataset = fileDataSet.DataSets[i];
+
+                    fullResult.Append(dataset.XSequenceString);
+                    fullResult.Append(dataset.YSequenceString);
+                    if (i < fileDataSet.DataSets.Count - 1)
+                    {
+                        fullResult.AppendLine();
+                    }
+                }
+                break;
+
+            default:
+                break;
+        }
+
+        return fullResult.ToString().TrimEnd('\n').TrimEnd('\r');
+
+    }
+
+
 
     private string SolveLevel7(List<string> lines)
     {
