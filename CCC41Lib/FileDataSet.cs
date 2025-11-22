@@ -4,14 +4,21 @@ namespace CCC41Lib;
 
 public class FileDataSet
 {
-    private string file;
+    private string _file = string.Empty;
 
     public FileDataSet(int level, string file)
     {
         Level = level;
         DataSets = Parse(Level, file);
-        this.file = file;
+        _file = file;
     }
+
+    public FileDataSet(int level, List<string> lines)
+    {
+        Level = level;
+        DataSets = Parse(Level, lines);
+    }
+
 
     public int Level { get; set; }
 
@@ -22,9 +29,12 @@ public class FileDataSet
     public List<DataSet> Parse(int level, string inputfilename)
     {
         var lines = File.ReadAllLines(inputfilename).ToList();
+        return Parse(level, lines);
+    }
 
+    private static List<DataSet> Parse(int level, List<string> lines)
+    {
         var dataSets = new List<DataSet>();
-
         if (level == 6)
         {
             var actualLines = lines.Skip(1).ToList();
@@ -74,7 +84,7 @@ public class FileDataSet
                 dataSets.Add(data);
             }
         }
+
         return dataSets;
     }
-
 }

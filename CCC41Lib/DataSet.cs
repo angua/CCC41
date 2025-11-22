@@ -17,6 +17,15 @@ public class DataSet
     public int Width { get; set; }
     public int Height { get; set; }
 
+    public List<int> XSequence { get; set; } = new();
+    public List<int> YSequence { get; set; } = new();
+    public string XSequenceString => string.Join(' ', XSequence);
+    public string YSequenceString => string.Join(' ', YSequence);
+
+    public Dictionary<int, Vector2> TimedPositions { get; set; } = new();
+
+    public int TimeUsed { get; set; }
+
     public Vector2 GetGridPosition(Vector2 position) => position - BoundsMin;
 
 

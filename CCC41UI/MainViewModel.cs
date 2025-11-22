@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.IO;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -12,7 +13,7 @@ namespace CCCUI;
 class MainViewModel : ViewModelBase
 {
     // pixel size of a grid position on the map
-    private int _gridPositionSize = 19;
+    private int _gridPositionSize = 11;
 
     private Solver _solver = new();
 
@@ -60,9 +61,13 @@ class MainViewModel : ViewModelBase
             SetValue(value);
             if (CurrentFileDataSet != null && value != null)
             {
+                XSequence = value.XSequenceString;
+                YSequence = value.YSequenceString;
+                PathPositions.Clear();
+
                 DrawDataSet(value);
             }
-            StepCount = 0;
+            TimeUsed = 0;
             Timing = 0;
         }
     }
@@ -75,13 +80,20 @@ class MainViewModel : ViewModelBase
         set => SetValue(value);
     }
 
-    public string LastStepValid
+    public string XSequence
+    {
+        get => GetValue<string>();
+        set => SetValue(value);
+    }
+    public string YSequence
     {
         get => GetValue<string>();
         set => SetValue(value);
     }
 
-    public int StepCount
+    public List<Vector2> PathPositions { get; set; } = new();
+
+    public int TimeUsed
     {
         get => GetValue<int>();
         set => SetValue(value);
@@ -142,9 +154,9 @@ class MainViewModel : ViewModelBase
         PreviousDataSet = new RelayCommand(CanDoPreviousDataSet, DoPreviousDataSet);
         NextDataSet = new RelayCommand(CanDoNextDataSet, DoNextDataSet);
 
-        /*
         FindPath = new RelayCommand(CanFindPath, DoFindPath);
 
+        /*
         FindPathNextStep = new RelayCommand(CanFindPathNextStep, DoFindPathNextStep);
 
         PreviousPath = new RelayCommand(CanPreviousPath, DoPreviousPath);
@@ -174,6 +186,34 @@ class MainViewModel : ViewModelBase
         CurrentDataSet = CurrentFileDataSet.DataSets[++CurrentDataSetIndex];
     }
 
+    public RelayCommand FindPath { get; }
+    public bool CanFindPath()
+    {
+        return CurrentFileDataSet != null;
+    }
+    public void DoFindPath()
+    {
+        _solver.Solve(Level, CurrentDataSet);
+
+        XSequence = CurrentDataSet.XSequenceString;
+        YSequence = CurrentDataSet.YSequenceString;
+        SetPathPositions();
+        TimeUsed = CurrentDataSet.TimeUsed;
+        DrawDataSet(CurrentDataSet);
+
+    }
+
+    private void SetPathPositions()
+    {
+        PathPositions.Clear();
+        foreach (var pos in CurrentDataSet.TimedPositions)
+        {
+            PathPositions.Add(CurrentDataSet.GetGridPosition(pos.Value));
+        }
+    }
+
+
+
     /*
     public RelayCommand PreviousPath { get; }
     public bool CanPreviousPath()
@@ -196,32 +236,6 @@ class MainViewModel : ViewModelBase
     }
 
 
-    public RelayCommand FindPath { get; }
-    public bool CanFindPath()
-    {
-        return CurrentFileDataSet != null;
-    }
-    public void DoFindPath()
-    {
-        var useCycles = false;
-        if (CurrentFileDataSet.Level == 6 || CurrentFileDataSet.Level == 7)
-        {
-            useCycles = true;
-        }
-
-        _solver.FindPath(CurrentDataSet, useCycles);
-        _solver.CreatePathfromSteps(CurrentDataSet);
-        if (CurrentDataSet.AllLastSteps.Count > 0)
-        {
-            LastStepValid = CurrentDataSet.CorrectPathSteps.Last().IsValid.ToString();
-            StepCount = CurrentDataSet.PathStepsCount;
-        }
-        Timing = _solver.Timing;
-
-        DrawLawn(CurrentDataSet);
-        Instructions = CurrentDataSet.InstructionString;
-
-    }
 
 
     public RelayCommand FindPathNextStep { get; }
@@ -334,6 +348,12 @@ class MainViewModel : ViewModelBase
         _bitmap.FillGridCell((int)gridTargetPosition.X, (int)gridTargetPosition.Y, Color.FromRgb(0, 150, 0));
         _bitmap.DrawXInGridcell((int)gridTargetPosition.X, (int)gridTargetPosition.Y, _gridPositionSize, Color.FromRgb(0, 0, 200));
 
+        if (PathPositions.Count > 0)
+        {
+            _bitmap.DrawConnectedLines(PathPositions, Color.FromRgb(255, 255, 255));
+        }
+
+
         /*
         // fill pathing rectangles with different colors
         for (int s = 0; s < lawn.CorrectPathSteps.Count; s++)
@@ -347,15 +367,6 @@ class MainViewModel : ViewModelBase
             }
         }
 
-        if (lawn.Path.Count > 0)
-        {
-            var startPos = lawn.Path.First();
-            _bitmap.DrawXInGridcell((int)startPos.X, (int)startPos.Y, _gridPositionSize, Color.FromRgb(255, 0, 0));
-            _bitmap.DrawConnectedLines(lawn.Path, Color.FromRgb(255, 255, 0));
-
-            var endPos = lawn.Path.Last();
-            _bitmap.DrawXInGridcell((int)endPos.X, (int)endPos.Y, _gridPositionSize / 2, Color.FromRgb(255, 255, 0));
-        }
         */
         Image = new Image();
 
