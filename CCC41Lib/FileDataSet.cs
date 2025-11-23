@@ -106,7 +106,7 @@ public class FileDataSet
         for (int i = 0; i < actualLines.Count; i++)
         {
             var dataSet = new DataSet();
-            dataSet.ForbiddenAreas = new List<Vector2>();
+            dataSet.ForbiddenAreas = new HashSet<Vector2>();
 
             string? line = actualLines[i];
             var parts = line.Split(new char[] { ' ', ',' });
@@ -157,7 +157,7 @@ public class FileDataSet
             var asteroidX = int.Parse(parts[0]);
             var asteroidY = int.Parse(parts[1]);
 
-            var forbidden = new List<Vector2>();
+            var forbidden = new HashSet<Vector2>();
             for (int x = -2; x <= 2; x++)
             {
                 for (int y = -2; y <= 2; y++)

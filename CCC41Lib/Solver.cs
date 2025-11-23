@@ -48,6 +48,10 @@ public partial class Solver
             case 6:
                 SolveLevel6(dataSet);
                 break;
+            case 7:
+                SolveLevel7(dataSet);
+                break;
+
             default:
                 break;
         }
@@ -72,6 +76,12 @@ public partial class Solver
         dataSet.TimedPositions = GetTimedPositions(dataSet.StartPosition, dataSet.XSequence, dataSet.YSequence);
         dataSet.TimeUsed = CalculateTime(dataSet.XSequence);
     }
+
+    private void SolveLevel7(DataSet dataSet)
+    {
+
+    }
+
 
     public static void SetBounds(DataSet dataSet)
     {

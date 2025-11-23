@@ -9,7 +9,7 @@ public class DataSet
     public int TimeLimit { get; set; }
 
     public List<Vector2> Asteroids { get; set; } = new();
-    public List<Vector2> ForbiddenAreas { get; set; } = new();
+    public HashSet<Vector2> ForbiddenAreas { get; set; } = new();
 
     public Vector2 BoundsMin { get; set; }
     public Vector2 BoundsMax { get; set; }

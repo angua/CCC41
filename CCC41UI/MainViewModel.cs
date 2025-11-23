@@ -300,11 +300,11 @@ class MainViewModel : ViewModelBase
         }
 
         var gridStartPosition = dataset.GetGridPosition(dataset.StartPosition);
-        _bitmap.FillGridCell((int)gridStartPosition.X, (int)gridStartPosition.Y, Color.FromRgb(0, 0, 150));
-        _bitmap.DrawXInGridcell((int)gridStartPosition.X, (int)gridStartPosition.Y, _gridPositionSize, Color.FromRgb(0, 0, 200));
+        _bitmap.FillGridCell((int)gridStartPosition.X, (int)gridStartPosition.Y, Color.FromRgb(0, 0, 200));
+        _bitmap.DrawXInGridcell((int)gridStartPosition.X, (int)gridStartPosition.Y, _gridPositionSize, Color.FromRgb(0, 0, 255));
         var gridTargetPosition = dataset.GetGridPosition(dataset.TargetPosition);
-        _bitmap.FillGridCell((int)gridTargetPosition.X, (int)gridTargetPosition.Y, Color.FromRgb(0, 150, 0));
-        _bitmap.DrawXInGridcell((int)gridTargetPosition.X, (int)gridTargetPosition.Y, _gridPositionSize, Color.FromRgb(0, 0, 200));
+        _bitmap.FillGridCell((int)gridTargetPosition.X, (int)gridTargetPosition.Y, Color.FromRgb(0, 200, 0));
+        _bitmap.DrawXInGridcell((int)gridTargetPosition.X, (int)gridTargetPosition.Y, _gridPositionSize, Color.FromRgb(0, 255, 0));
 
         if (PathPositions.Count > 0)
         {
