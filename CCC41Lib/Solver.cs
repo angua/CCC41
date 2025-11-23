@@ -30,9 +30,20 @@ public partial class Solver
     {
         switch (level)
         {
-
             case 1:
                 SolveLevel1(dataSet);
+                break;
+            case 2:
+                SolveLevel1(dataSet);
+                break;
+            case 3:
+                SolveLevel3(dataSet);
+                break;
+            case 4:
+                SolveLevel3(dataSet);
+                break;
+            case 5:
+                SolveLevel6(dataSet);
                 break;
             case 6:
                 SolveLevel6(dataSet);
@@ -43,6 +54,7 @@ public partial class Solver
 
     }
 
+
     private void SolveLevel1(DataSet dataSet)
     {
         dataSet.TimeUsed = CalculateTime(dataSet.XSequence);
@@ -51,16 +63,40 @@ public partial class Solver
         var maxTime = dataSet.TimedPositions.Max(p => p.Key);
         dataSet.TargetPosition = dataSet.TimedPositions[maxTime];
 
-        var minX = Math.Min(dataSet.StartPosition.X, dataSet.TargetPosition.X) - 5;
-        var maxX = Math.Max(dataSet.StartPosition.X, dataSet.TargetPosition.X) + 5;
-        var minY = Math.Min(dataSet.StartPosition.Y, dataSet.TargetPosition.Y) - 5;
-        var maxY = Math.Max(dataSet.StartPosition.Y, dataSet.TargetPosition.Y) + 5;
+        SetBounds(dataSet);
+    }
 
-        dataSet.BoundsMin = new Vector2(minX, minY);
-        dataSet.BoundsMax = new Vector2(maxX, maxY);
+    private void SolveLevel3(DataSet dataSet)
+    {
+        (dataSet.XSequence, dataSet.YSequence) = GetSequences(dataSet.StartPosition, dataSet.TargetPosition);
+        dataSet.TimedPositions = GetTimedPositions(dataSet.StartPosition, dataSet.XSequence, dataSet.YSequence);
+        dataSet.TimeUsed = CalculateTime(dataSet.XSequence);
+    }
+
+    public static void SetBounds(DataSet dataSet)
+    {
+        var minX = Math.Min(dataSet.StartPosition.X, dataSet.TargetPosition.X);
+        var maxX = Math.Max(dataSet.StartPosition.X, dataSet.TargetPosition.X);
+        var minY = Math.Min(dataSet.StartPosition.Y, dataSet.TargetPosition.Y);
+        var maxY = Math.Max(dataSet.StartPosition.Y, dataSet.TargetPosition.Y);
+
+        if (dataSet.Asteroids.Count > 0)
+        {
+            var asteroidMinX = dataSet.Asteroids.Min(a => a.X);
+            var asteroidMaxX = dataSet.Asteroids.Max(a => a.X);
+            var asteroidMinY = dataSet.Asteroids.Min(a => a.Y);
+            var asteroidMaxY = dataSet.Asteroids.Max(a => a.Y);
+
+            minX = Math.Min(minX, asteroidMinX);
+            maxX = Math.Max(maxX, asteroidMaxX);
+            minY = Math.Min(minY, asteroidMinY);
+            maxY = Math.Max(maxY, asteroidMaxY);
+        }
+
+        dataSet.BoundsMin = new Vector2(minX - 5, minY - 5);
+        dataSet.BoundsMax = new Vector2(maxX + 5, maxY + 5);
         dataSet.Width = (int)(dataSet.BoundsMax.X - dataSet.BoundsMin.X + 1);
         dataSet.Height = (int)(dataSet.BoundsMax.Y - dataSet.BoundsMin.Y + 1);
-
     }
 
     private string SolveLevel1(List<string> lines)
@@ -974,7 +1010,7 @@ public partial class Solver
         }
 
         var sequenceY = CalculateMovementSequence((int)(end.Y - start.Y));
-        if (dir.X < 0)
+        if (dir.Y < 0)
         {
             sequenceX = sequenceX.Select(x => -1 * x).ToList();
         }
@@ -1176,6 +1212,11 @@ public partial class Solver
         return true;
     }
 
+    /// <summary>
+    /// Returns the time it takes for a single pace step to complete
+    /// </summary>
+    /// <param name="pace"></param>
+    /// <returns></returns>
     private int GetTimeForStep(int pace)
     {
         if (pace == 0)
@@ -1270,6 +1311,36 @@ public partial class Solver
                 {
                     var dataset = fileDataSet.DataSets[i];
                     fullResult.Append(dataset.TimeUsed);
+                }
+                break;
+
+            case 2:
+                for (var i = 0; i < fileDataSet.DataSets.Count; i++)
+                {
+                    var dataset = fileDataSet.DataSets[i];
+                    fullResult.Append($"{dataset.TargetPosition.X} {dataset.TimeUsed}");
+                }
+                break;
+
+            case 3:
+                for (var i = 0; i < fileDataSet.DataSets.Count; i++)
+                {
+                    var dataset = fileDataSet.DataSets[i];
+                    fullResult.Append(dataset.XSequence);
+                }
+                break;
+
+            case 4:
+                for (var i = 0; i < fileDataSet.DataSets.Count; i++)
+                {
+                    var dataset = fileDataSet.DataSets[i];
+                    fullResult.Append(dataset.XSequence);
+                    fullResult.Append(dataset.YSequence);
+
+                    if (i < fileDataSet.DataSets.Count - 1)
+                    {
+                        fullResult.AppendLine();
+                    }
                 }
                 break;
 

@@ -13,7 +13,7 @@ namespace CCCUI;
 class MainViewModel : ViewModelBase
 {
     // pixel size of a grid position on the map
-    private int _gridPositionSize = 11;
+    private int _gridPositionSize = 5;
 
     private Solver _solver = new();
 
@@ -291,7 +291,7 @@ class MainViewModel : ViewModelBase
         foreach (var area in dataset.ForbiddenAreas)
         {
             var gridPosition = dataset.GetGridPosition(area);
-            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(60, 0, 0));
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(120, 0, 0));
         }
         foreach (var asteroid in dataset.Asteroids)
         {
