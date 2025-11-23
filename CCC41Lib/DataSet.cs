@@ -26,7 +26,12 @@ public class DataSet
     public bool Valid { get; set; }
     public List<string> ErrorText { get; set; } = new();
 
-    public Vector2 GetGridPosition(Vector2 position) => position - BoundsMin;
+    public Vector2 GetGridPosition(Vector2 position)
+    {
+        var flippedPos = new Vector2(position.X, -position.Y);
+        var flippedBoundsMin = new Vector2(BoundsMin.X, -BoundsMax.Y);
 
+        return flippedPos - flippedBoundsMin;
+    }
 
 }

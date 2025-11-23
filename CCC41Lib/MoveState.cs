@@ -17,11 +17,12 @@ internal class MoveState
     public int PaceY { get; set; }
     public int TimeLeftX { get; set; }
     public int TimeLeftY { get; set; }
-    public string AddMoveX { get; set; } = string.Empty;
-    public string AddMoveY { get; set; } = string.Empty;
+    public int? AddMoveX { get; set; } = null;
+    public int? AddMoveY { get; set; } = null;
     public MoveState? Previous { get; set; }
     public int TimeToReachX { get; set; }
     public int TimeToReachY { get; set; }
-    public int TotalTimeToReach { get; set; }
+    public int TimeToReach { get; set; }
+    public float Cost { get; set; }
 
 }

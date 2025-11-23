@@ -18,7 +18,7 @@ void WriteOutputs(int level)
         using var outputWriter = new StreamWriter(outputfilename);
 
         Console.WriteLine($"Level {level} File {inputfilename}");
-        var output = solver.Solve(level, lines);
+        //   var output = solver.Solve(level, lines);
 
         outputWriter.Write(output);
     }

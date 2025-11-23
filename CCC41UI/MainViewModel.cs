@@ -83,7 +83,15 @@ class MainViewModel : ViewModelBase
         get => GetValue<string>();
         set => SetValue(value);
     }
+
     public string YSequence
+    {
+        get => GetValue<string>();
+        set => SetValue(value);
+    }
+
+
+    public string Sequences
     {
         get => GetValue<string>();
         set => SetValue(value);
@@ -169,6 +177,7 @@ class MainViewModel : ViewModelBase
 
         XSequence = CurrentDataSet.XSequenceString;
         YSequence = CurrentDataSet.YSequenceString;
+        Sequences = string.Join("\n", CurrentDataSet.XSequenceString, CurrentDataSet.YSequenceString);
         SetPathPositions();
         TimeUsed = CurrentDataSet.TimeUsed;
         DataSetValid = CurrentDataSet.Valid;
@@ -282,6 +291,7 @@ class MainViewModel : ViewModelBase
 
     private void DrawDataSet(DataSet dataset)
     {
+        _gridPositionSize = 5;
         _bitmap = new BitmapGridDrawing(dataset.Width, dataset.Height, _gridPositionSize, 1);
         _bitmap.BackgroundColor = Color.FromRgb(0, 0, 30);
         _bitmap.GridLineColor = Color.FromRgb(0, 0, 60);
