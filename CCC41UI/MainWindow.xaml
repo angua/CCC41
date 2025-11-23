@@ -44,23 +44,29 @@
             </StackPanel>
 
             <StackPanel Margin="0,30,0,0" Orientation="Horizontal">
-                <TextBlock Width="100" Text="Time limit" />
+                <TextBlock Width="150" Text="Time limit" />
                 <TextBlock Text="{Binding CurrentDataSet.TimeLimit}" />
             </StackPanel>
 
             <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
-                <TextBlock Width="100" Text="Time used" />
+                <TextBlock Width="150" Text="Time used" />
                 <TextBlock Text="{Binding TimeUsed}" />
             </StackPanel>
 
             <Button Margin="0,30,0,0" Padding="6" Command="{Binding WriteOutputFiles}" Content="WriteOutputFiles"></Button>
             <Button Margin="0,30,0,0" Padding="6" Command="{Binding Solve}" Content="Solve"></Button>
 
+            <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                <TextBlock Width="150" Text="Calculation time (ms)" />
+                <TextBlock Text="{Binding Timing}" />
+            </StackPanel>
+
+
             <TextBlock Width="100" Margin="0,10,0,0" HorizontalAlignment="Left" Text="Sequences:" />
             <TextBox Text="{Binding Sequences}" TextWrapping="NoWrap"   />
 
             <StackPanel Margin="0,30,0,0" Orientation="Horizontal">
-                <TextBlock Width="100" HorizontalAlignment="Left" Text="Valid: " />
+                <TextBlock Width="150" HorizontalAlignment="Left" Text="Valid: " />
                 <TextBlock Text="{Binding DataSetValid}" />
             </StackPanel>
 

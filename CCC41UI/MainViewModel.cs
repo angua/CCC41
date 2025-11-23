@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Text.RegularExpressions;
@@ -60,6 +61,7 @@ class MainViewModel : ViewModelBase
             {
                 XSequence = value.XSequenceString;
                 YSequence = value.YSequenceString;
+                Sequences = $"{XSequence}\n{YSequence}";
                 SetPathPositions();
                 DataSetErrors = string.Join("\n", CurrentDataSet.ErrorText);
                 DrawDataSet(value);
@@ -173,8 +175,12 @@ class MainViewModel : ViewModelBase
     }
     public void DoSolve()
     {
+        Timing = 0;
+        var stopWatch = new Stopwatch();
+        stopWatch.Start();
         _solver.Solve(Level, CurrentDataSet);
-
+        stopWatch.Stop();
+        Timing = stopWatch.ElapsedMilliseconds;
         XSequence = CurrentDataSet.XSequenceString;
         YSequence = CurrentDataSet.YSequenceString;
         Sequences = string.Join("\n", CurrentDataSet.XSequenceString, CurrentDataSet.YSequenceString);

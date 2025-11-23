@@ -23,6 +23,6 @@ internal class MoveState
     public int TimeToReachX { get; set; }
     public int TimeToReachY { get; set; }
     public int TimeToReach { get; set; }
-    public float Cost { get; set; }
+    public int Cost { get; set; }
 
 }

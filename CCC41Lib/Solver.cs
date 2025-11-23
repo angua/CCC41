@@ -69,26 +69,25 @@ public partial class Solver
             Position = dataSet.StartPosition,
         };
 
-        var sequenceY = CalculateMovementSequence((int)(dataSet.TargetPosition.Y - dataSet.StartPosition.Y));
-        var sequenceX = CalculateMovementSequence((int)(dataSet.TargetPosition.X - dataSet.StartPosition.X));
-        var timeX = CalculateTime(sequenceX);
-        var timeY = CalculateTime(sequenceY);
+        var timeX = CalculateBestTime((int)(dataSet.TargetPosition.X - dataSet.StartPosition.X));
+        var timeY = CalculateBestTime((int)(dataSet.TargetPosition.Y - dataSet.StartPosition.Y));
         start.Cost = Math.Max(timeX, timeY);
 
-        var moveStates = new Dictionary<float, List<MoveState>>();
-        moveStates.Add(start.Cost, [start]);
+        var moveStates = new Dictionary<int, Queue<MoveState>>();
+        var startqueue = new Queue<MoveState>();
+        startqueue.Enqueue(start);
+        moveStates.Add(start.Cost, startqueue);
 
-        var visited = new Dictionary<Vector2, List<MoveState>>();
+        var visited = new Dictionary<Vector2, HashSet<(int PaceX, int PaceY)>>();
 
         MoveState? finalState = null;
 
-        while (moveStates.Any())
+        while (moveStates.Count > 0)
         {
             var minCost = moveStates.Min(s => s.Key);
             var bestStates = moveStates[minCost];
 
-            var current = bestStates.FirstOrDefault();
-            bestStates.Remove(current);
+            var current = bestStates.Dequeue();
 
             if (bestStates.Count == 0)
             {
@@ -100,8 +99,9 @@ public partial class Solver
                 continue;
             }
 
-            var newPacesX = current.TimeLeftX > 0 ? [current.PaceX] : ValidNextPaces(current.PaceX);
-            var newPacesY = current.TimeLeftY > 0 ? [current.PaceY] : ValidNextPaces(current.PaceY);
+            var dir = dataSet.TargetPosition - current.Position;
+            var newPacesX = current.TimeLeftX > 0 ? [current.PaceX] : NextPaces(current.PaceX, (int)dir.X);
+            var newPacesY = current.TimeLeftY > 0 ? [current.PaceY] : NextPaces(current.PaceY, (int)dir.Y);
 
             foreach (int paceX in newPacesX)
             {
@@ -149,48 +149,40 @@ public partial class Solver
                         }
                     }
 
-
                     if (!visited.TryGetValue(newPos, out var movesHere))
                     {
-                        movesHere = new List<MoveState>();
+                        movesHere = new HashSet<(int, int)>();
                         visited[newPos] = movesHere;
                     }
-                    if (!movesHere.Any(m => m.PaceX == moveState.PaceX && m.PaceY == moveState.PaceY))
+                    if (!movesHere.Contains((moveState.PaceX, moveState.PaceY)))
                     {
-                        movesHere.Add(moveState);
+                        movesHere.Add((moveState.PaceX, moveState.PaceY));
 
                         // estimate remaining time
-                        sequenceY = CalculateMovementSequence((int)(dataSet.TargetPosition.Y - newPos.Y));
-                        sequenceX = CalculateMovementSequence((int)(dataSet.TargetPosition.X - newPos.X));
-                        timeX = CalculateTime(sequenceX);
-                        timeY = CalculateTime(sequenceY);
+                        timeX = CalculateBestTime((int)(dataSet.TargetPosition.Y - newPos.Y));
+                        timeY = CalculateBestTime((int)(dataSet.TargetPosition.X - newPos.X));
                         moveState.TimeToReach = Math.Max(timeX, timeY);
                         moveState.Cost = moveState.Time + moveState.TimeToReach;
 
                         if (!moveStates.TryGetValue(moveState.Cost, out var movesWithCost))
                         {
-                            movesWithCost = new List<MoveState>();
+                            movesWithCost = new Queue<MoveState>();
                             moveStates.Add(moveState.Cost, movesWithCost);
                         }
-                        movesWithCost.Add(moveState);
+                        movesWithCost.Enqueue(moveState);
 
                         moveState.AddMoveX = current.TimeLeftX == 0 ? moveState.PaceX : null;
                         moveState.AddMoveY = current.TimeLeftY == 0 ? moveState.PaceY : null;
 
                         moveState.Previous = current;
                     }
-
                 }
-
             }
-
 
             if (finalState != null)
             {
                 break;
             }
-
-
         }
 
         // create steps in order
@@ -247,7 +239,29 @@ public partial class Solver
         Validate(7, dataSet);
     }
 
+    private int CalculateBestTime(int targetPos)
+    {
+        var absTargetPos = Math.Abs(targetPos);
 
+        if (absTargetPos >= 9)
+        {
+            return 20 + absTargetPos;
+        }
+        else
+        {
+            var steps = new List<int> { 5, 4, 3, 2, 1, 2, 3, 4, 5 };
+            var toRemove = 9 - Math.Abs(targetPos);
+
+            for (int i = 0; i < toRemove; i++)
+            {
+                var currentMin = steps.Min();
+                steps.RemoveAt(steps.IndexOf(currentMin));
+            }
+
+            return steps.Sum();
+        }
+
+    }
 
     public static void SetBounds(DataSet dataSet)
     {
@@ -565,13 +579,14 @@ public partial class Solver
 
     private List<int> CalculateMovementSequence(int targetPos)
     {
-        var result = new List<int>();
+        var absTargetPos = Math.Abs(targetPos);
+        var result = new List<int>(absTargetPos);
 
         if (Math.Abs(targetPos) >= 9)
         {
             result.AddRange([5, 4, 3, 2, 1]); // accel
 
-            int additionalOnes = Math.Abs(targetPos) - 9;
+            int additionalOnes = absTargetPos - 9;
 
             for (int i = 0; i < additionalOnes; i++)
             {
@@ -582,7 +597,7 @@ public partial class Solver
         }
         else // pos < 9
         {
-            var steps = new List<int> { 5, 4, 3, 2, 1, 2, 3, 4, 5 };
+            var steps = new List<int>(9) { 5, 4, 3, 2, 1, 2, 3, 4, 5 };
             var toRemove = 9 - Math.Abs(targetPos);
 
             for (int i = 0; i < toRemove; i++)
@@ -931,6 +946,26 @@ public partial class Solver
             _ => [],
         };
     }
+
+    private List<int> NextPaces(int current, int dir)
+    {
+        return current switch
+        {
+            -5 => dir < 0 ? [-4, -5, 0] : [0, -5, -4],
+            -4 => dir < 0 ? [-3, -4, -5] : [-5, -4, -3],
+            -3 => dir < 0 ? [-2, -3, -4] : [-4, -3, -2],
+            -2 => dir < 0 ? [-1, -2, -3] : [-3, -2, -1],
+            -1 => dir < 0 ? [-1, -2] : [-2, -1],
+            0 => dir < 0 ? [-5, 0, 5] : (dir > 0 ? [5, 0, -5] : [0, 5, -5]),
+            1 => dir > 0 ? [1, 2] : [2, 1],
+            2 => dir > 0 ? [1, 2, 3] : [3, 2, 1],
+            3 => dir > 0 ? [2, 3, 4] : [4, 3, 2],
+            4 => dir > 0 ? [3, 4, 5] : [5, 4, 3],
+            5 => dir > 0 ? [4, 5, 0] : [0, 5, 4],
+            _ => [],
+        };
+    }
+
 
     private void TryOrthogonalPath(DataSet data, Vector2 startPos, Vector2 targetPos, List<int> xSteps, List<int> ySteps, int timeLimit)
     {
