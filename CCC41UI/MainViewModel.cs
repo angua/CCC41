@@ -20,11 +20,7 @@ class MainViewModel : ViewModelBase
     public int Level
     {
         get => GetValue<int>();
-        set
-        {
-            SetValue(value);
-            ParseData();
-        }
+        set => SetValue(value);
     }
 
 
@@ -39,6 +35,7 @@ class MainViewModel : ViewModelBase
         {
             SetValue(value);
             CurrentDataSetIndex = 0;
+            Level = value.Level;
             if (value != null && value.DataSets.Count > 0)
             {
                 CurrentDataSet = value.DataSets[CurrentDataSetIndex];
@@ -63,11 +60,12 @@ class MainViewModel : ViewModelBase
             {
                 XSequence = value.XSequenceString;
                 YSequence = value.YSequenceString;
-                PathPositions.Clear();
+                SetPathPositions();
                 DataSetErrors = string.Join("\n", CurrentDataSet.ErrorText);
                 DrawDataSet(value);
+                TimeUsed = value.TimeUsed;
+                DataSetValid = value.Valid;
             }
-            TimeUsed = 0;
             Timing = 0;
         }
     }
@@ -118,46 +116,6 @@ class MainViewModel : ViewModelBase
         set => SetValue(value);
     }
 
-
-    public int CurrentPathIndex
-    {
-        get => GetValue<int>();
-        set => SetValue(value);
-    }
-
-    /*
-    public PathStep? CurrentLastPathstep
-    {
-        get => GetValue<PathStep>();
-        set
-        {
-            SetValue(value);
-            if (value != null)
-            {
-                CurrentDataSet.SetStepsfromLast(value);
-                _solver.CreatePathfromSteps(CurrentDataSet);
-
-                LastStepValid = CurrentDataSet.CorrectPathSteps.Last().IsValid.ToString();
-
-                DrawLawn(CurrentDataSet);
-            }
-        }
-    }
-    */
-
-    public int AllPathCount
-    {
-        get => GetValue<int>();
-        set => SetValue(value);
-    }
-
-
-    public string Instructions
-    {
-        get => GetValue<string>();
-        set => SetValue(value);
-    }
-
     public long Timing
     {
         get => GetValue<long>();
@@ -166,6 +124,8 @@ class MainViewModel : ViewModelBase
 
     public MainViewModel()
     {
+        ParseData();
+
         Level = 6;
         CurrentDataSetIndex = 0;
         Timing = 0;
@@ -173,7 +133,7 @@ class MainViewModel : ViewModelBase
         PreviousDataSet = new RelayCommand(CanDoPreviousDataSet, DoPreviousDataSet);
         NextDataSet = new RelayCommand(CanDoNextDataSet, DoNextDataSet);
 
-        FindPath = new RelayCommand(CanFindPath, DoFindPath);
+        Solve = new RelayCommand(CanSolve, DoSolve);
 
         WriteOutputFiles = new RelayCommand(CanWriteOutputFiles, DoWriteOutputFiles);
     }
@@ -198,12 +158,12 @@ class MainViewModel : ViewModelBase
         CurrentDataSet = CurrentFileDataSet.DataSets[++CurrentDataSetIndex];
     }
 
-    public RelayCommand FindPath { get; }
-    public bool CanFindPath()
+    public RelayCommand Solve { get; }
+    public bool CanSolve()
     {
         return CurrentFileDataSet != null;
     }
-    public void DoFindPath()
+    public void DoSolve()
     {
         _solver.Solve(Level, CurrentDataSet);
 
@@ -261,36 +221,54 @@ class MainViewModel : ViewModelBase
 
     private void ParseData()
     {
-        var inputPath = $"N:/Birgit/Coding/CatCoder/CCC41/Files/Level{Level}";
-        var inputFiles = Directory.GetFiles(inputPath, "*.in");
+        var inputPath = $"N:/Birgit/Coding/CatCoder/CCC41/Files";
 
-        foreach (var file in inputFiles)
+        var subDirs = Directory.GetDirectories(inputPath);
+        var fileFolderRegex = @"Level(\d+)";
+
+        foreach (var subDir in subDirs)
         {
-            var fileName = Path.GetFileNameWithoutExtension(file);
+            var parts = subDir.Split('\\');
+            var folderName = parts.Last();
 
-            var levelName = $"Level {Level}";
-            var FileDataSetName = fileName;
+            var match = Regex.Match(folderName, fileFolderRegex);
 
-            var fileDataSet = new FileDataSet(Level, file);
+            var currentLevel = int.Parse(match.Groups[1].Value);
 
-            var levelNode = FilesCollection.FirstOrDefault(n => n.Name == levelName);
-            if (levelNode == null)
+            if (match.Success)
             {
-                levelNode = new ScenarioNode()
+                var inputFiles = Directory.GetFiles(subDir, "*.in");
+
+                foreach (var file in inputFiles)
                 {
-                    Name = levelName,
-                    Level = Level
-                };
-                FilesCollection.Add(levelNode);
-            }
+                    var fileName = Path.GetFileNameWithoutExtension(file);
 
-            levelNode.Children.Add(new ScenarioNode()
-            {
-                Name = FileDataSetName,
-                FileDataSet = fileDataSet,
-                Level = Level
-            });
+                    var levelName = $"Level {currentLevel}";
+                    var FileDataSetName = fileName;
+
+                    var fileDataSet = new FileDataSet(currentLevel, file);
+
+                    var levelNode = FilesCollection.FirstOrDefault(n => n.Name == levelName);
+                    if (levelNode == null)
+                    {
+                        levelNode = new ScenarioNode()
+                        {
+                            Name = levelName,
+                            Level = currentLevel
+                        };
+                        FilesCollection.Add(levelNode);
+                    }
+
+                    levelNode.Children.Add(new ScenarioNode()
+                    {
+                        Name = FileDataSetName,
+                        FileDataSet = fileDataSet,
+                        Level = currentLevel
+                    });
+                }
+            }
         }
+
     }
 
     private void SetPathPositions()

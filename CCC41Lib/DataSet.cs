@@ -14,8 +14,8 @@ public class DataSet
     public Vector2 BoundsMin { get; set; }
     public Vector2 BoundsMax { get; set; }
 
-    public int Width { get; set; }
-    public int Height { get; set; }
+    public int Width { get; set; } = 1;
+    public int Height { get; set; } = 1;
 
     public List<int> XSequence { get; set; } = new();
     public List<int> YSequence { get; set; } = new();

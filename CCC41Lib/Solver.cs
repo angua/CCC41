@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Channels;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CCC41Lib;
 
@@ -25,15 +26,42 @@ public partial class Solver
         };
     }
 
-    public List<string> Solve(int level, DataSet dataSet)
+    public void Solve(int level, DataSet dataSet)
     {
-        return level switch
+        switch (level)
         {
-            6 => SolveLevel6(dataSet),
-            _ => throw new InvalidOperationException(($"Level {level} not supported."))
-        };
+
+            case 1:
+                SolveLevel1(dataSet);
+                break;
+            case 6:
+                SolveLevel6(dataSet);
+                break;
+            default:
+                break;
+        }
+
     }
 
+    private void SolveLevel1(DataSet dataSet)
+    {
+        dataSet.TimeUsed = CalculateTime(dataSet.XSequence);
+        var timedPositionsX = GetTimedPositions(0, dataSet.XSequence);
+        dataSet.TimedPositions = timedPositionsX.Select(p => (p.Key, new Vector2(p.Value, 0))).ToDictionary();
+        var maxTime = dataSet.TimedPositions.Max(p => p.Key);
+        dataSet.TargetPosition = dataSet.TimedPositions[maxTime];
+
+        var minX = Math.Min(dataSet.StartPosition.X, dataSet.TargetPosition.X) - 5;
+        var maxX = Math.Max(dataSet.StartPosition.X, dataSet.TargetPosition.X) + 5;
+        var minY = Math.Min(dataSet.StartPosition.Y, dataSet.TargetPosition.Y) - 5;
+        var maxY = Math.Max(dataSet.StartPosition.Y, dataSet.TargetPosition.Y) + 5;
+
+        dataSet.BoundsMin = new Vector2(minX, minY);
+        dataSet.BoundsMax = new Vector2(maxX, maxY);
+        dataSet.Width = (int)(dataSet.BoundsMax.X - dataSet.BoundsMin.X + 1);
+        dataSet.Height = (int)(dataSet.BoundsMax.Y - dataSet.BoundsMin.Y + 1);
+
+    }
 
     private string SolveLevel1(List<string> lines)
     {
@@ -1237,6 +1265,14 @@ public partial class Solver
 
         switch (fileDataSet.Level)
         {
+            case 1:
+                for (var i = 0; i < fileDataSet.DataSets.Count; i++)
+                {
+                    var dataset = fileDataSet.DataSets[i];
+                    fullResult.Append(dataset.TimeUsed);
+                }
+                break;
+
             case 6:
                 for (var i = 0; i < fileDataSet.DataSets.Count; i++)
                 {
