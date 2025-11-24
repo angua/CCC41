@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace CCC41Lib;
 
-internal class MoveState
+public class MoveState
 {
     public int Time { get; set; }
     public Vector2 Position { get; set; }

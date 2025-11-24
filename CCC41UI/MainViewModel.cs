@@ -144,6 +144,7 @@ class MainViewModel : ViewModelBase
         NextDataSet = new RelayCommand(CanDoNextDataSet, DoNextDataSet);
 
         Solve = new RelayCommand(CanSolve, DoSolve);
+        Simulation = new RelayCommand(CanDoSimulation, DoSimulation);
 
         WriteOutputFiles = new RelayCommand(CanWriteOutputFiles, DoWriteOutputFiles);
     }
@@ -190,6 +191,32 @@ class MainViewModel : ViewModelBase
         DataSetErrors = string.Join("\n", CurrentDataSet.ErrorText);
         DrawDataSet(CurrentDataSet);
     }
+
+    public RelayCommand Simulation { get; }
+    public bool CanDoSimulation()
+    {
+        return CurrentFileDataSet != null;
+    }
+    public void DoSimulation()
+    {
+        Timing = 0;
+        var stopWatch = new Stopwatch();
+        stopWatch.Start();
+        _solver.Solve(Level, CurrentDataSet);
+        stopWatch.Stop();
+        Timing = stopWatch.ElapsedMilliseconds;
+        XSequence = CurrentDataSet.XSequenceString;
+        YSequence = CurrentDataSet.YSequenceString;
+        Sequences = string.Join("\n", CurrentDataSet.XSequenceString, CurrentDataSet.YSequenceString);
+        SetPathPositions();
+        TimeUsed = CurrentDataSet.TimeUsed;
+        DataSetValid = CurrentDataSet.Valid;
+        DataSetErrors = string.Join("\n", CurrentDataSet.ErrorText);
+        DrawDataSet(CurrentDataSet);
+    }
+
+
+
 
     public RelayCommand WriteOutputFiles { get; }
     public bool CanWriteOutputFiles()

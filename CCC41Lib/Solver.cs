@@ -1,16 +1,17 @@
-﻿using System.Diagnostics;
-using System.Linq;
-using System.Net.Http.Headers;
-using System.Numerics;
-using System.Security.Claims;
+﻿using System.Numerics;
 using System.Text;
-using System.Threading.Channels;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CCC41Lib;
 
 public partial class Solver
 {
+    public Dictionary<Vector2, HashSet<(int PaceX, int PaceY)>> Visited { get; set; } = new();
+    public Dictionary<int, Queue<MoveState>> MoveStates { get; set; } = new();
+    public Queue<MoveState> BestStates { get; set; } = new();
+    public MoveState? Current { get; set; }
+    public MoveState? FinalState { get; set; } = null;
+
+
     public void Solve(int level, DataSet dataSet)
     {
         switch (level)
@@ -64,6 +65,26 @@ public partial class Solver
 
     private void SolveLevel7(DataSet dataSet)
     {
+        SetupLevel7(dataSet);
+
+        FinalState = null;
+        while (MoveStates.Count > 0)
+        {
+            PrepareNextStepLevel7();
+            NextStepLevel7(dataSet);
+
+            if (FinalState != null)
+            {
+                break;
+            }
+        }
+
+        CreateSolutionLevel7(dataSet);
+    }
+
+
+    private void SetupLevel7(DataSet dataSet)
+    {
         var start = new MoveState()
         {
             Position = dataSet.StartPosition,
@@ -73,164 +94,164 @@ public partial class Solver
         var timeY = CalculateBestTime((int)(dataSet.TargetPosition.Y - dataSet.StartPosition.Y));
         start.Cost = Math.Max(timeX, timeY);
 
-        var moveStates = new Dictionary<int, Queue<MoveState>>();
+        MoveStates = new();
         var startqueue = new Queue<MoveState>();
         startqueue.Enqueue(start);
-        moveStates.Add(start.Cost, startqueue);
+        MoveStates.Add(start.Cost, startqueue);
 
-        var visited = new Dictionary<Vector2, HashSet<(int PaceX, int PaceY)>>();
+        Visited = new();
+    }
 
-        MoveState? finalState = null;
+    private void PrepareNextStepLevel7()
+    {
+        var minCost = MoveStates.Min(s => s.Key);
+        BestStates = MoveStates[minCost];
 
-        while (moveStates.Count > 0)
+        Current = BestStates.Dequeue();
+
+        if (BestStates.Count == 0)
         {
-            var minCost = moveStates.Min(s => s.Key);
-            var bestStates = moveStates[minCost];
+            MoveStates.Remove(minCost);
+        }
+    }
 
-            var current = bestStates.Dequeue();
-
-            if (bestStates.Count == 0)
-            {
-                moveStates.Remove(minCost);
-            }
-
-            if (current == null)
-            {
-                continue;
-            }
-
-            var dir = dataSet.TargetPosition - current.Position;
-            var newPacesX = current.TimeLeftX > 0 ? [current.PaceX] : NextPaces(current.PaceX, (int)dir.X);
-            var newPacesY = current.TimeLeftY > 0 ? [current.PaceY] : NextPaces(current.PaceY, (int)dir.Y);
-
-            foreach (int paceX in newPacesX)
-            {
-                foreach (var paceY in newPacesY)
-                {
-                    var waitX = current.TimeLeftX > 0 ? current.TimeLeftX : GetTimeForStep(paceX);
-                    var waitY = current.TimeLeftY > 0 ? current.TimeLeftY : GetTimeForStep(paceY);
-
-                    var wait = Math.Min(waitX, waitY);
-                    var timeLeftX = waitX - wait;
-                    var timeLeftY = waitY - wait;
-
-                    var dirX = timeLeftX == 0 ? Math.Sign(paceX) : 0;
-                    var dirY = timeLeftY == 0 ? Math.Sign(paceY) : 0;
-
-                    var newPos = new Vector2(current.Position.X + dirX, current.Position.Y + dirY);
-
-                    if (newPos.X < dataSet.BoundsMin.X ||
-                        newPos.X > dataSet.BoundsMax.X ||
-                        newPos.Y < dataSet.BoundsMin.Y ||
-                        newPos.Y > dataSet.BoundsMax.Y ||
-                        dataSet.ForbiddenAreas.Contains(newPos))
-                    {
-                        continue;
-                    }
-
-
-                    var moveState = new MoveState()
-                    {
-                        Position = newPos,
-                        PaceX = paceX,
-                        PaceY = paceY,
-                        TimeLeftX = timeLeftX,
-                        TimeLeftY = timeLeftY,
-                        Time = current.Time + wait
-                    };
-
-                    if (moveState.Position == dataSet.TargetPosition)
-                    {
-                        if ((moveState.PaceX == 5 || moveState.PaceX == -5 || moveState.PaceX == 0) &&
-                            (moveState.PaceY == 5 || moveState.PaceY == -5 || moveState.PaceY == 0))
-                        {
-                            // we found our solution!
-                            finalState = moveState;
-                        }
-                    }
-
-                    if (!visited.TryGetValue(newPos, out var movesHere))
-                    {
-                        movesHere = new HashSet<(int, int)>();
-                        visited[newPos] = movesHere;
-                    }
-                    if (!movesHere.Contains((moveState.PaceX, moveState.PaceY)))
-                    {
-                        movesHere.Add((moveState.PaceX, moveState.PaceY));
-
-                        // estimate remaining time
-                        timeX = CalculateBestTime((int)(dataSet.TargetPosition.Y - newPos.Y));
-                        timeY = CalculateBestTime((int)(dataSet.TargetPosition.X - newPos.X));
-                        moveState.TimeToReach = Math.Max(timeX, timeY);
-                        moveState.Cost = moveState.Time + moveState.TimeToReach;
-
-                        if (!moveStates.TryGetValue(moveState.Cost, out var movesWithCost))
-                        {
-                            movesWithCost = new Queue<MoveState>();
-                            moveStates.Add(moveState.Cost, movesWithCost);
-                        }
-                        movesWithCost.Enqueue(moveState);
-
-                        moveState.AddMoveX = current.TimeLeftX == 0 ? moveState.PaceX : null;
-                        moveState.AddMoveY = current.TimeLeftY == 0 ? moveState.PaceY : null;
-
-                        moveState.Previous = current;
-                    }
-                }
-            }
-
-            if (finalState != null)
-            {
-                break;
-            }
+    private void NextStepLevel7(DataSet dataSet)
+    {
+        if (Current == null)
+        {
+            return;
         }
 
+        var dir = dataSet.TargetPosition - Current.Position;
+        var newPacesX = Current.TimeLeftX > 0 ? [Current.PaceX] : NextPaces(Current.PaceX, (int)dir.X);
+        var newPacesY = Current.TimeLeftY > 0 ? [Current.PaceY] : NextPaces(Current.PaceY, (int)dir.Y);
+
+        foreach (int paceX in newPacesX)
+        {
+            foreach (var paceY in newPacesY)
+            {
+                var waitX = Current.TimeLeftX > 0 ? Current.TimeLeftX : GetTimeForStep(paceX);
+                var waitY = Current.TimeLeftY > 0 ? Current.TimeLeftY : GetTimeForStep(paceY);
+
+                var wait = Math.Min(waitX, waitY);
+                var timeLeftX = waitX - wait;
+                var timeLeftY = waitY - wait;
+
+                var dirX = timeLeftX == 0 ? Math.Sign(paceX) : 0;
+                var dirY = timeLeftY == 0 ? Math.Sign(paceY) : 0;
+
+                var newPos = new Vector2(Current.Position.X + dirX, Current.Position.Y + dirY);
+
+                if (newPos.X < dataSet.BoundsMin.X ||
+                    newPos.X > dataSet.BoundsMax.X ||
+                    newPos.Y < dataSet.BoundsMin.Y ||
+                    newPos.Y > dataSet.BoundsMax.Y ||
+                    dataSet.ForbiddenAreas.Contains(newPos))
+                {
+                    continue;
+                }
+
+                var moveState = new MoveState()
+                {
+                    Position = newPos,
+                    PaceX = paceX,
+                    PaceY = paceY,
+                    TimeLeftX = timeLeftX,
+                    TimeLeftY = timeLeftY,
+                    Time = Current.Time + wait
+                };
+
+                if (moveState.Position == dataSet.TargetPosition)
+                {
+                    if ((moveState.PaceX == 5 || moveState.PaceX == -5 || moveState.PaceX == 0) &&
+                        (moveState.PaceY == 5 || moveState.PaceY == -5 || moveState.PaceY == 0))
+                    {
+                        // we found our solution!
+                        FinalState = moveState;
+                    }
+                }
+
+                if (!Visited.TryGetValue(newPos, out var movesHere))
+                {
+                    movesHere = new HashSet<(int, int)>();
+                    Visited[newPos] = movesHere;
+                }
+                if (!movesHere.Contains((moveState.PaceX, moveState.PaceY)))
+                {
+                    movesHere.Add((moveState.PaceX, moveState.PaceY));
+
+                    // estimate remaining time
+                    var timeX = CalculateBestTime((int)(dataSet.TargetPosition.Y - newPos.Y));
+                    var timeY = CalculateBestTime((int)(dataSet.TargetPosition.X - newPos.X));
+                    moveState.TimeToReach = Math.Max(timeX, timeY);
+                    moveState.Cost = moveState.Time + moveState.TimeToReach;
+
+                    if (!MoveStates.TryGetValue(moveState.Cost, out var movesWithCost))
+                    {
+                        movesWithCost = new Queue<MoveState>();
+                        MoveStates.Add(moveState.Cost, movesWithCost);
+                    }
+                    movesWithCost.Enqueue(moveState);
+
+                    moveState.AddMoveX = Current.TimeLeftX == 0 ? moveState.PaceX : null;
+                    moveState.AddMoveY = Current.TimeLeftY == 0 ? moveState.PaceY : null;
+
+                    moveState.Previous = Current;
+                }
+            }
+        }
+    }
+
+    private void CreateSolutionLevel7(DataSet dataSet)
+    {
         // create steps in order
         var xSteps = new List<int>();
         var ySteps = new List<int>();
         var positions = new List<Vector2>();
 
-        var currentState = finalState;
-        dataSet.TimedPositions.Clear();
-        while (true)
+        if (FinalState != null)
         {
-            dataSet.TimedPositions.Add(currentState.Time, currentState.Position);
-            if (currentState.AddMoveX != null)
+            var currentState = FinalState;
+            dataSet.TimedPositions.Clear();
+            while (true)
             {
-                xSteps.Add(currentState.AddMoveX.Value);
+                dataSet.TimedPositions.Add(currentState.Time, currentState.Position);
+                if (currentState.AddMoveX != null)
+                {
+                    xSteps.Add(currentState.AddMoveX.Value);
+                }
+                if (currentState.AddMoveY != null)
+                {
+                    ySteps.Add(currentState.AddMoveY.Value);
+                }
+                if (currentState.Previous != null)
+                {
+                    currentState = currentState.Previous;
+                }
+                else
+                {
+                    break;
+                }
             }
-            if (currentState.AddMoveY != null)
-            {
-                ySteps.Add(currentState.AddMoveY.Value);
-            }
-            if (currentState.Previous != null)
-            {
-                currentState = currentState.Previous;
-            }
-            else
-            {
-                break;
-            }
-        }
-        xSteps.Reverse();
-        ySteps.Reverse();
-        positions.Reverse();
+            xSteps.Reverse();
+            ySteps.Reverse();
+            positions.Reverse();
 
-        // might have to stand still in one direction until the last movement in the other one is finished
-        for (int xLeft = 0; xLeft < finalState.TimeLeftX; xLeft++)
-        {
+            // might have to stand still in one direction until the last movement in the other one is finished
+            for (int xLeft = 0; xLeft < FinalState.TimeLeftX; xLeft++)
+            {
+                ySteps.Add(0);
+            }
+            for (int yLeft = 0; yLeft < FinalState.TimeLeftY; yLeft++)
+            {
+                xSteps.Add(0);
+            }
+
+            xSteps.Insert(0, 0);
+            ySteps.Insert(0, 0);
+            xSteps.Add(0);
             ySteps.Add(0);
         }
-        for (int yLeft = 0; yLeft < finalState.TimeLeftY; yLeft++)
-        {
-            xSteps.Add(0);
-        }
-
-
-        xSteps.Insert(0, 0);
-        ySteps.Insert(0, 0);
-        xSteps.Add(0);
-        ySteps.Add(0);
 
         dataSet.XSequence = xSteps;
         dataSet.YSequence = ySteps;
@@ -238,6 +259,7 @@ public partial class Solver
         //GetTimedPositions(dataSet.StartPosition, dataSet.XSequence, dataSet.YSequence);
         Validate(7, dataSet);
     }
+
 
     private int CalculateBestTime(int targetPos)
     {
