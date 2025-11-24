@@ -22,17 +22,22 @@ class MainViewModel : ViewModelBase
     private CancellationTokenSource _tokensource;
     private CancellationToken _token;
 
-    private List<Vector2> _visited = new();
+    private HashSet<Vector2> _visited = new();
     private HashSet<Vector2> _activeStates = new();
     private HashSet<Vector2> _bestStates = new();
     private Vector2? _current;
+
+    public bool ShowEveryStep
+    {
+        get => GetValue<bool>();
+        set => SetValue(value);
+    }
 
     public int Level
     {
         get => GetValue<int>();
         set => SetValue(value);
     }
-
 
     // tree of levels and files
     public ObservableCollection<ScenarioNode> FilesCollection { get; set; } = new();
@@ -219,27 +224,32 @@ class MainViewModel : ViewModelBase
 
         while (_solver.MoveStates.Count > 0)
         {
+            _solver.CheckBatchDone();
             _solver.PrepareNextStepLevel7();
 
-            App.Current.Dispatcher.Invoke(() =>
+            if (ShowEveryStep || _solver.BatchDone)
             {
-                _visited = _solver.Visited.Keys.ToList();
-                var moveStates = _solver.MoveStates.SelectMany(m => m.Value);
-                _activeStates = moveStates.Select(m => m.Position).ToHashSet();
-                _bestStates = _solver.BestStates.Select(m => m.Position).ToHashSet();
-                _current = _solver.Current != null ? _solver.Current.Position : null;
-
-                foreach (var pos in _activeStates)
+                App.Current.Dispatcher.Invoke(() =>
                 {
-                    _visited.Remove(pos);
-                }
-                foreach (var pos in _bestStates)
-                {
-                    _activeStates.Remove(pos);
-                }
+                    _visited = _solver.Visited.Keys.ToHashSet();
+                    var moveStates = _solver.MoveStates.SelectMany(m => m.Value);
+                    _activeStates = moveStates.Select(m => m.Position).ToHashSet();
+                    _bestStates = _solver.BestStates.Select(m => m.Position).ToHashSet();
+                    _current = _solver.Current != null ? _solver.Current.Position : null;
 
-                UpdateDrawing();
-            });
+                    foreach (var pos in _activeStates)
+                    {
+                        _visited.Remove(pos);
+                    }
+                    foreach (var pos in _bestStates)
+                    {
+                        _activeStates.Remove(pos);
+                    }
+
+                    UpdateDrawing();
+                });
+                await Task.Delay(1);
+            }
             if (_token.IsCancellationRequested)
             {
                 _running = false;
@@ -251,7 +261,6 @@ class MainViewModel : ViewModelBase
             {
                 break;
             }
-            await Task.Delay(5);
         }
 
         _solver.CreateSolutionLevel7(CurrentDataSet);
@@ -450,13 +459,13 @@ class MainViewModel : ViewModelBase
         foreach (var cell in _visited)
         {
             var gridPosition = CurrentDataSet.GetGridPosition(cell);
-            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(50, 50, 50));
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(100, 100, 100));
         }
 
         foreach (var cell in _activeStates)
         {
             var gridPosition = CurrentDataSet.GetGridPosition(cell);
-            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(100, 100, 100));
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(200, 200, 200));
         }
 
         foreach (var cell in _bestStates)
@@ -470,6 +479,11 @@ class MainViewModel : ViewModelBase
             var gridPosition = CurrentDataSet.GetGridPosition(_current.Value);
             _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(255, 255, 0));
         }
+
+        var gridStartPosition = CurrentDataSet.GetGridPosition(CurrentDataSet.StartPosition);
+        _bitmap.FillGridCell((int)gridStartPosition.X, (int)gridStartPosition.Y, Color.FromRgb(0, 0, 200));
+        _bitmap.DrawXInGridcell((int)gridStartPosition.X, (int)gridStartPosition.Y, _gridPositionSize, Color.FromRgb(0, 0, 255));
+
 
         Image.Source = _bitmap.Picture;
         RaisePropertyChanged(nameof(Image));

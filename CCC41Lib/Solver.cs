@@ -5,11 +5,13 @@ namespace CCC41Lib;
 
 public partial class Solver
 {
-    public Dictionary<Vector2, HashSet<(int PaceX, int PaceY)>> Visited { get; set; } = new();
-    public Dictionary<int, Queue<MoveState>> MoveStates { get; set; } = new();
-    public Queue<MoveState> BestStates { get; set; } = new();
+    public Dictionary<Vector2, HashSet<(int PaceX, int PaceY, int WaitX, int WaitY)>> Visited { get; set; } = new();
+    public Dictionary<int, Stack<MoveState>> MoveStates { get; set; } = new();
+    public Stack<MoveState> BestStates { get; set; } = new();
     public MoveState? Current { get; set; }
     public MoveState? FinalState { get; set; } = null;
+    public bool BatchDone { get; set; } = false;
+    public int MinCost { get; set; }
 
 
     public void Solve(int level, DataSet dataSet)
@@ -70,6 +72,7 @@ public partial class Solver
         FinalState = null;
         while (MoveStates.Count > 0)
         {
+            CheckBatchDone();
             PrepareNextStepLevel7();
             NextStepLevel7(dataSet);
 
@@ -95,9 +98,9 @@ public partial class Solver
         start.Cost = Math.Max(timeX, timeY);
 
         MoveStates = new();
-        var startqueue = new Queue<MoveState>();
-        startqueue.Enqueue(start);
-        MoveStates.Add(start.Cost, startqueue);
+        var startStates = new Stack<MoveState>();
+        startStates.Push(start);
+        MoveStates.Add(start.Cost, startStates);
 
         Visited = new();
         BestStates.Clear();
@@ -105,17 +108,25 @@ public partial class Solver
         FinalState = null;
     }
 
-    public void PrepareNextStepLevel7()
+    public void CheckBatchDone()
     {
-        var minCost = MoveStates.Min(s => s.Key);
-        BestStates = MoveStates[minCost];
-
-        Current = BestStates.Dequeue();
-
         if (BestStates.Count == 0)
         {
-            MoveStates.Remove(minCost);
+            MoveStates.Remove(MinCost);
+            BatchDone = true;
         }
+        else
+        {
+            BatchDone = false;
+        }
+    }
+
+    public void PrepareNextStepLevel7()
+    {
+        MinCost = MoveStates.Min(s => s.Key);
+        BestStates = MoveStates[MinCost];
+
+        Current = BestStates.Pop();
     }
 
     public void NextStepLevel7(DataSet dataSet)
@@ -176,12 +187,12 @@ public partial class Solver
 
                 if (!Visited.TryGetValue(newPos, out var movesHere))
                 {
-                    movesHere = new HashSet<(int, int)>();
+                    movesHere = new HashSet<(int, int, int, int)>();
                     Visited[newPos] = movesHere;
                 }
-                if (!movesHere.Contains((moveState.PaceX, moveState.PaceY)))
+                if (!movesHere.Contains((moveState.PaceX, moveState.PaceY, moveState.TimeLeftX, moveState.TimeLeftY)))
                 {
-                    movesHere.Add((moveState.PaceX, moveState.PaceY));
+                    movesHere.Add((moveState.PaceX, moveState.PaceY, moveState.TimeLeftX, moveState.TimeLeftY));
 
                     // estimate remaining time
                     var timeX = CalculateBestTime((int)(dataSet.TargetPosition.Y - newPos.Y));
@@ -191,10 +202,10 @@ public partial class Solver
 
                     if (!MoveStates.TryGetValue(moveState.Cost, out var movesWithCost))
                     {
-                        movesWithCost = new Queue<MoveState>();
+                        movesWithCost = new Stack<MoveState>();
                         MoveStates.Add(moveState.Cost, movesWithCost);
                     }
-                    movesWithCost.Enqueue(moveState);
+                    movesWithCost.Push(moveState);
 
                     moveState.AddMoveX = Current.TimeLeftX == 0 ? moveState.PaceX : null;
                     moveState.AddMoveY = Current.TimeLeftY == 0 ? moveState.PaceY : null;
