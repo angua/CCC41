@@ -83,7 +83,7 @@ public partial class Solver
     }
 
 
-    private void SetupLevel7(DataSet dataSet)
+    public void SetupLevel7(DataSet dataSet)
     {
         var start = new MoveState()
         {
@@ -100,9 +100,12 @@ public partial class Solver
         MoveStates.Add(start.Cost, startqueue);
 
         Visited = new();
+        BestStates.Clear();
+        Current = null;
+        FinalState = null;
     }
 
-    private void PrepareNextStepLevel7()
+    public void PrepareNextStepLevel7()
     {
         var minCost = MoveStates.Min(s => s.Key);
         BestStates = MoveStates[minCost];
@@ -115,7 +118,7 @@ public partial class Solver
         }
     }
 
-    private void NextStepLevel7(DataSet dataSet)
+    public void NextStepLevel7(DataSet dataSet)
     {
         if (Current == null)
         {
@@ -202,7 +205,7 @@ public partial class Solver
         }
     }
 
-    private void CreateSolutionLevel7(DataSet dataSet)
+    public void CreateSolutionLevel7(DataSet dataSet)
     {
         // create steps in order
         var xSteps = new List<int>();

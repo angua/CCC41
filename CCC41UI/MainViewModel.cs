@@ -18,6 +18,15 @@ class MainViewModel : ViewModelBase
 
     private Solver _solver = new();
 
+    private bool _running = false;
+    private CancellationTokenSource _tokensource;
+    private CancellationToken _token;
+
+    private List<Vector2> _visited = new();
+    private HashSet<Vector2> _activeStates = new();
+    private HashSet<Vector2> _bestStates = new();
+    private Vector2? _current;
+
     public int Level
     {
         get => GetValue<int>();
@@ -44,7 +53,6 @@ class MainViewModel : ViewModelBase
         }
     }
 
-
     // selected dataset in file
     public int CurrentDataSetIndex
     {
@@ -64,9 +72,13 @@ class MainViewModel : ViewModelBase
                 Sequences = $"{XSequence}\n{YSequence}";
                 SetPathPositions();
                 DataSetErrors = string.Join("\n", CurrentDataSet.ErrorText);
-                DrawDataSet(value);
                 TimeUsed = value.TimeUsed;
                 DataSetValid = value.Valid;
+                _visited = new();
+                _activeStates = new();
+                _bestStates = new();
+                _current = null;
+                DrawDataSet(value);
             }
             Timing = 0;
         }
@@ -85,14 +97,11 @@ class MainViewModel : ViewModelBase
         get => GetValue<string>();
         set => SetValue(value);
     }
-
     public string YSequence
     {
         get => GetValue<string>();
         set => SetValue(value);
     }
-
-
     public string Sequences
     {
         get => GetValue<string>();
@@ -104,15 +113,12 @@ class MainViewModel : ViewModelBase
         get => GetValue<bool>();
         set => SetValue(value);
     }
-
-    public string ValidityOverview
+    public string DataSetErrors
     {
         get => GetValue<string>();
         set => SetValue(value);
     }
-
-
-    public string DataSetErrors
+    public string ValidityOverview
     {
         get => GetValue<string>();
         set => SetValue(value);
@@ -199,12 +205,56 @@ class MainViewModel : ViewModelBase
     }
     public void DoSimulation()
     {
-        Timing = 0;
-        var stopWatch = new Stopwatch();
-        stopWatch.Start();
-        _solver.Solve(Level, CurrentDataSet);
-        stopWatch.Stop();
-        Timing = stopWatch.ElapsedMilliseconds;
+        _tokensource = new CancellationTokenSource();
+        _token = _tokensource.Token;
+
+        StartSimulation();
+    }
+
+    private async Task StartSimulation()
+    {
+        _running = true;
+
+        _solver.SetupLevel7(CurrentDataSet);
+
+        while (_solver.MoveStates.Count > 0)
+        {
+            _solver.PrepareNextStepLevel7();
+
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                _visited = _solver.Visited.Keys.ToList();
+                var moveStates = _solver.MoveStates.SelectMany(m => m.Value);
+                _activeStates = moveStates.Select(m => m.Position).ToHashSet();
+                _bestStates = _solver.BestStates.Select(m => m.Position).ToHashSet();
+                _current = _solver.Current != null ? _solver.Current.Position : null;
+
+                foreach (var pos in _activeStates)
+                {
+                    _visited.Remove(pos);
+                }
+                foreach (var pos in _bestStates)
+                {
+                    _activeStates.Remove(pos);
+                }
+
+                UpdateDrawing();
+            });
+            if (_token.IsCancellationRequested)
+            {
+                _running = false;
+                break;
+            }
+            _solver.NextStepLevel7(CurrentDataSet);
+
+            if (_solver.FinalState != null)
+            {
+                break;
+            }
+            await Task.Delay(5);
+        }
+
+        _solver.CreateSolutionLevel7(CurrentDataSet);
         XSequence = CurrentDataSet.XSequenceString;
         YSequence = CurrentDataSet.YSequenceString;
         Sequences = string.Join("\n", CurrentDataSet.XSequenceString, CurrentDataSet.YSequenceString);
@@ -215,8 +265,15 @@ class MainViewModel : ViewModelBase
         DrawDataSet(CurrentDataSet);
     }
 
-
-
+    public RelayCommand Stop { get; }
+    public bool CanStop()
+    {
+        return true;
+    }
+    public void DoStop()
+    {
+        _tokensource.Cancel();
+    }
 
     public RelayCommand WriteOutputFiles { get; }
     public bool CanWriteOutputFiles()
@@ -259,7 +316,6 @@ class MainViewModel : ViewModelBase
 
         ValidityOverview = invalidText.Count > 0 ? string.Join("\n", invalidText) : "All data sets valid.";
     }
-
 
     private void ParseData()
     {
@@ -342,6 +398,31 @@ class MainViewModel : ViewModelBase
             _bitmap.DrawXInGridcell((int)gridPosition.X, (int)gridPosition.Y, _gridPositionSize, Color.FromRgb(255, 0, 0));
         }
 
+        foreach (var cell in _visited)
+        {
+            var gridPosition = dataset.GetGridPosition(cell);
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(50, 50, 50));
+        }
+
+        foreach (var cell in _activeStates)
+        {
+            var gridPosition = dataset.GetGridPosition(cell);
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(100, 100, 100));
+        }
+
+        foreach (var cell in _bestStates)
+        {
+            var gridPosition = dataset.GetGridPosition(cell);
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(255, 128, 0));
+        }
+
+        if (_current != null)
+        {
+            var gridPosition = dataset.GetGridPosition(_current.Value);
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(255, 255, 0));
+        }
+
+
         var gridStartPosition = dataset.GetGridPosition(dataset.StartPosition);
         _bitmap.FillGridCell((int)gridStartPosition.X, (int)gridStartPosition.Y, Color.FromRgb(0, 0, 200));
         _bitmap.DrawXInGridcell((int)gridStartPosition.X, (int)gridStartPosition.Y, _gridPositionSize, Color.FromRgb(0, 0, 255));
@@ -359,6 +440,36 @@ class MainViewModel : ViewModelBase
 
         Image.Stretch = Stretch.None;
         Image.Margin = new Thickness(0);
+
+        Image.Source = _bitmap.Picture;
+        RaisePropertyChanged(nameof(Image));
+    }
+
+    public void UpdateDrawing()
+    {
+        foreach (var cell in _visited)
+        {
+            var gridPosition = CurrentDataSet.GetGridPosition(cell);
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(50, 50, 50));
+        }
+
+        foreach (var cell in _activeStates)
+        {
+            var gridPosition = CurrentDataSet.GetGridPosition(cell);
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(100, 100, 100));
+        }
+
+        foreach (var cell in _bestStates)
+        {
+            var gridPosition = CurrentDataSet.GetGridPosition(cell);
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(255, 128, 0));
+        }
+
+        if (_current != null)
+        {
+            var gridPosition = CurrentDataSet.GetGridPosition(_current.Value);
+            _bitmap.FillGridCell((int)gridPosition.X, (int)gridPosition.Y, Color.FromRgb(255, 255, 0));
+        }
 
         Image.Source = _bitmap.Picture;
         RaisePropertyChanged(nameof(Image));

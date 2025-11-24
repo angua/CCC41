@@ -55,6 +55,7 @@
 
             <Button Margin="0,30,0,0" Padding="6" Command="{Binding WriteOutputFiles}" Content="WriteOutputFiles"></Button>
             <Button Margin="0,30,0,0" Padding="6" Command="{Binding Solve}" Content="Solve"></Button>
+            <Button Margin="0,30,0,0" Padding="6" Command="{Binding Simulation}" Content="Start Simulation"></Button>
 
             <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
                 <TextBlock Width="150" Text="Calculation time (ms)" />
