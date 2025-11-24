@@ -49,7 +49,7 @@ class MainViewModel : ViewModelBase
         set
         {
             SetValue(value);
-            CurrentDataSetIndex = 0;
+            CurrentDataSetIndexInput = "0";
             Level = value.Level;
             if (value != null && value.DataSets.Count > 0)
             {
@@ -62,7 +62,14 @@ class MainViewModel : ViewModelBase
     public int CurrentDataSetIndex
     {
         get => GetValue<int>();
-        set => SetValue(value);
+        set
+        {
+            if (value >= 0 && value < CurrentFileDataSet.DataSets.Count)
+            {
+                SetValue(value);
+                CurrentDataSet = CurrentFileDataSet.DataSets[value];
+            }
+        }
     }
     public DataSet CurrentDataSet
     {
@@ -167,7 +174,7 @@ class MainViewModel : ViewModelBase
     }
     public void DoPreviousDataSet()
     {
-        CurrentDataSet = CurrentFileDataSet.DataSets[--CurrentDataSetIndex];
+        --CurrentDataSetIndex;
     }
 
     public RelayCommand NextDataSet { get; }
@@ -177,7 +184,7 @@ class MainViewModel : ViewModelBase
     }
     public void DoNextDataSet()
     {
-        CurrentDataSet = CurrentFileDataSet.DataSets[++CurrentDataSetIndex];
+        ++CurrentDataSetIndex;
     }
 
     public RelayCommand Solve { get; }
@@ -291,7 +298,9 @@ class MainViewModel : ViewModelBase
     }
     public void DoWriteOutputFiles()
     {
-        var inputFiles = FilesCollection.Where(f => f.Level == Level && f.FileDataSet != null);
+        var filesLevelNode = FilesCollection.FirstOrDefault(f => f.Level == Level);
+        var inputFiles = filesLevelNode.Children;
+
 
         var invalidText = new List<string>();
 

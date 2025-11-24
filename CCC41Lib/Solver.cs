@@ -106,6 +106,7 @@ public partial class Solver
         BestStates.Clear();
         Current = null;
         FinalState = null;
+        MinCost = -1;
     }
 
     public void CheckBatchDone()
@@ -123,10 +124,13 @@ public partial class Solver
 
     public void PrepareNextStepLevel7()
     {
-        MinCost = MoveStates.Min(s => s.Key);
-        BestStates = MoveStates[MinCost];
+        if (MoveStates.Count > 0)
+        {
+            MinCost = MoveStates.Min(s => s.Key);
+            BestStates = MoveStates[MinCost];
 
-        Current = BestStates.Pop();
+            Current = BestStates.Pop();
+        }
     }
 
     public void NextStepLevel7(DataSet dataSet)
@@ -325,65 +329,6 @@ public partial class Solver
         dataSet.Height = (int)(dataSet.BoundsMax.Y - dataSet.BoundsMin.Y + 1);
     }
 
-    private string SolveLevel1(List<string> lines)
-    {
-        var actualLines = lines.Skip(1);
-        var fullResult = new StringBuilder();
-
-        foreach (var line in actualLines)
-        {
-            var parts = line.Split(' ');
-
-            var sum = parts.Select(int.Parse).Sum();
-
-            var resultLine = sum.ToString();
-            fullResult.AppendLine(resultLine);
-        }
-
-        return fullResult.ToString().TrimEnd('\n').TrimEnd('\r');
-    }
-
-    private string SolveLevel2(List<string> lines)
-    {
-        var actualLines = lines.Skip(1).ToList();
-        var fullResult = new StringBuilder();
-
-        foreach (var line in actualLines)
-        {
-            var parts = line.Split(' ');
-
-            var position = parts.Select(int.Parse).Select(i => i > 0 ? 1 : (i < 0 ? -1 : 0)).Sum();
-            var timeTaken = parts.Select(int.Parse).Select(i => i == 0 ? 1 : Math.Abs(i)).Sum();
-
-            var resultLine = $"{position} {timeTaken}";
-            fullResult.AppendLine(resultLine);
-        }
-
-        return fullResult.ToString().TrimEnd('\n').TrimEnd('\r') + Environment.NewLine;
-    }
-
-    private string SolveLevel3(List<string> lines)
-    {
-        var actualLines = lines.Skip(1).ToList();
-        var fullResult = new StringBuilder();
-
-        foreach (var line in actualLines)
-        {
-            var parts = line.Split(' ');
-
-            var stationPos = int.Parse(parts[0]);
-            var timeLimit = int.Parse(parts[1]);
-
-            var sequence = new List<int>();
-            sequence = CalculateSequence(stationPos);
-
-            var resultLine = string.Join(' ', sequence.Select(i => i.ToString()));
-            fullResult.AppendLine(resultLine);
-        }
-
-        return fullResult.ToString() + Environment.NewLine;
-    }
-
     private List<int> CalculateSequence(int targetPos)
     {
         var result = new List<int> { 0 };
@@ -428,37 +373,6 @@ public partial class Solver
         return result;
     }
 
-    private string SolveLevel4(List<string> lines)
-    {
-        var actualLines = lines.Skip(1).ToList();
-        var fullResult = new StringBuilder();
-
-        for (int i = 0; i < actualLines.Count; i++)
-        {
-            string? line = actualLines[i];
-            var parts = line.Split(new char[] { ' ', ',' });
-
-            var stationPosX = int.Parse(parts[0]);
-            var stationPosY = int.Parse(parts[1]);
-            var timeLimit = int.Parse(parts[2]);
-
-            var sequenceX = CalculateSequence(stationPosX);
-            var sequenceY = CalculateSequence(stationPosY);
-
-            var resultLine = string.Join(' ', sequenceX.Select(i => i.ToString()));
-            fullResult.AppendLine(resultLine);
-
-            resultLine = string.Join(' ', sequenceY.Select(i => i.ToString()));
-            fullResult.AppendLine(resultLine);
-
-            if (i < actualLines.Count - 1)
-            {
-                fullResult.AppendLine();
-            }
-        }
-
-        return fullResult.ToString();
-    }
 
 
     private string SolveLevel5(List<string> lines)
@@ -1604,6 +1518,21 @@ public partial class Solver
                     }
                 }
                 break;
+
+            case 7:
+                for (var i = 0; i < fileDataSet.DataSets.Count; i++)
+                {
+                    var dataset = fileDataSet.DataSets[i];
+
+                    fullResult.Append(dataset.XSequenceString);
+                    fullResult.Append(dataset.YSequenceString);
+                    if (i < fileDataSet.DataSets.Count - 1)
+                    {
+                        fullResult.AppendLine();
+                    }
+                }
+                break;
+
 
             default:
                 break;
