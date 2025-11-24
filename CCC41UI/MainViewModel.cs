@@ -49,7 +49,7 @@ class MainViewModel : ViewModelBase
         set
         {
             SetValue(value);
-            CurrentDataSetIndexInput = "0";
+            CurrentDataSetIndex = 0;
             Level = value.Level;
             if (value != null && value.DataSets.Count > 0)
             {
@@ -64,7 +64,7 @@ class MainViewModel : ViewModelBase
         get => GetValue<int>();
         set
         {
-            if (value >= 0 && value < CurrentFileDataSet.DataSets.Count)
+            if (CurrentFileDataSet != null && value >= 0 && value < CurrentFileDataSet.DataSets.Count)
             {
                 SetValue(value);
                 CurrentDataSet = CurrentFileDataSet.DataSets[value];
